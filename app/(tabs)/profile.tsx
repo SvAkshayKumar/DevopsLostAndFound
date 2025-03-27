@@ -260,33 +260,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleDeleteAvsatar = async () => {
-    try {
-      if (!user?.id) return;
-
-      const filename = `${user.id}/avatar.jpg`;
-      const { error: deleteError } = await supabase.storage
-        .from('avatar-images')
-        .remove([filename]);
-
-      if (deleteError) throw deleteError;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: null })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      await fetchUserData();
-      Alert.alert('Success', 'Profile picture removed');
-      setAvatarModalVisible(false);
-    } catch (error) {
-      console.error('Error deleting avatar:', error);
-      Alert.alert('Error', 'Failed to remove profile picture');
-    }
-  };
-
   const handleMarkItemResolved = async (itemId: string) => {
     try {
       const { error } = await supabase
@@ -312,7 +285,6 @@ export default function ProfileScreen() {
     helperName: string;
     rating: number;
     experience: string;
-    itemId: string;
   }) => {
     console.log('Feedback submitted:', feedback);
 
@@ -359,8 +331,7 @@ export default function ProfileScreen() {
   };
 
   const handleEmailRedirect = () => {
-    const email = 'forgotemail169@gmail.com';
-    const mailtoUrl = `mailto:${email}`;
+    const mailtoUrl = `https://mail.google.com/mail/u/0/#inbox?compose=KnqNxpXWvDSNtpJdZXNWMsTwClBfJFRzSFpMhMGgsDQFTpprZfkkqNnQKfJQpTrLdSPWRQjKmZxwrxLMTBwdwHQGThXsBqmLQKRlTkjkRcRvlShmmKfJTMQhphbjSNzSGknHNNVTRTwfzdwgPgDvZ`;
 
     Linking.openURL(mailtoUrl).catch((err) =>
       console.error('Error opening mail app', err)
@@ -708,7 +679,6 @@ export default function ProfileScreen() {
         onRequestClose={() => setAvatarModalVisible(false)}
       >
         <View style={styles.modalAvatarOverlay}>
-          <BlurView intensity={20} style={styles.blurBackground}>
             <View style={styles.modalAvatarContainer}>
               <TouchableOpacity
                 style={styles.closeAvatarButton}
@@ -739,7 +709,6 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </BlurView>
         </View>
       </Modal>
     </ScrollView>
