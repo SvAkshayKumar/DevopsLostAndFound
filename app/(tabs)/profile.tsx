@@ -16,7 +16,6 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { send } from '@emailjs/react-native';
-import { BlurView } from 'expo-blur';
 import {
   LogOut,
   Camera,
@@ -140,21 +139,40 @@ export default function ProfileScreen() {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      await uploadAvatar(result.assets[0].uri);
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'You need to grant camera roll permissions to select an image.');
+        return;
+      }
+  
+      // Open image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+  
+      console.log('Full ImagePicker result:', JSON.stringify(result, null, 2));
+  
+      // Safe check for assets before accessing length
+      if (result.assets?.length) {
+        await uploadAvatar(result.assets[0].uri);
+      } else {
+        console.warn('No image selected');
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to select an image');
     }
   };
+  
 
   const uploadAvatar = async (uri: string) => {
     try {
-      if (!user?.id) {
+      if (!user?.id) { 
         throw new Error('User ID is missing');
       }
 
@@ -254,6 +272,7 @@ export default function ProfileScreen() {
 
       setIsEditing(false);
       await fetchUserData();
+      Alert.alert('Success','Successfully updated User Name');
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile');
