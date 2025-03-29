@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  Modal,
   ActivityIndicator,
   Linking,
 } from 'react-native';
@@ -21,8 +20,8 @@ import {
   Eye,
   EyeOff,
   User,
-  X,
 } from 'lucide-react-native';
+import ResetPasswordModal from './item/resetPasswordModal';
 
 type PasswordRequirement = {
   label: string;
@@ -43,18 +42,8 @@ export default function AuthScreen() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(30);
-  const router = useRouter();
-
-  // Reset Password Modal States
   const [resetModalVisible, setResetModalVisible] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetOtp, setResetOtp] = useState('');
-  const [resetOtpSent, setResetOtpSent] = useState(false);
-  const [resetOtpVerified, setResetOtpVerified] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetResendDisabled, setResetResendDisabled] = useState(false);
-  const [resetCountdown, setResetCountdown] = useState(30);
+  const router = useRouter();
 
   const [passwordRequirements, setPasswordRequirements] = useState<
     PasswordRequirement[]
@@ -91,27 +80,12 @@ export default function AuthScreen() {
     return () => clearInterval(timer);
   }, [resendDisabled, countdown]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (resetResendDisabled && resetCountdown > 0) {
-      timer = setInterval(() => {
-        setResetCountdown((prev) => prev - 1);
-      }, 1000);
-    } else if (resetCountdown === 0) {
-      setResetResendDisabled(false);
-      setResetCountdown(30);
-    }
-    return () => clearInterval(timer);
-  }, [resetResendDisabled, resetCountdown]);
-
   const validateEmail = (email: string) => {
     return email.toLowerCase().endsWith('@rvu.edu.in');
   };
 
-  const handleGenerateOTP = async (isReset = false) => {
-    const emailToUse = isReset ? resetEmail : email;
-
-    if (!emailToUse || !validateEmail(emailToUse)) {
+  const handleGenerateOTP = async () => {
+    if (!email || !validateEmail(email)) {
       Alert.alert('Error', 'Please enter a valid RVU email address');
       return;
     }
@@ -126,7 +100,7 @@ export default function AuthScreen() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: emailToUse,
+            email,
             type: 'numeric',
             organization: 'RVU Lost & Found',
             subject: 'OTP Verification',
@@ -136,13 +110,8 @@ export default function AuthScreen() {
 
       if (!response.ok) throw new Error('Failed to send OTP');
 
-      if (isReset) {
-        setResetOtpSent(true);
-        setResetResendDisabled(true);
-      } else {
-        setOtpSent(true);
-        setResendDisabled(true);
-      }
+      setOtpSent(true);
+      setResendDisabled(true);
       Alert.alert('Success', 'OTP has been sent to your email');
     } catch (error) {
       Alert.alert('Error', 'Failed to send OTP. Please try again.');
@@ -151,11 +120,8 @@ export default function AuthScreen() {
     }
   };
 
-  const handleVerifyOTP = async (isReset = false) => {
-    const emailToUse = isReset ? resetEmail : email;
-    const otpToVerify = isReset ? resetOtp : otp;
-
-    if (!otpToVerify) {
+  const handleVerifyOTP = async () => {
+    if (!otp) {
       Alert.alert('Error', 'Please enter the OTP');
       return;
     }
@@ -170,77 +136,21 @@ export default function AuthScreen() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: emailToUse,
-            otp: otpToVerify,
+            email,
+            otp,
           }),
         }
       );
 
       if (!response.ok) throw new Error('Invalid OTP');
 
-      if (isReset) {
-        setResetOtpVerified(true);
-      } else {
-        setOtpVerified(true);
-      }
+      setOtpVerified(true);
       Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
       Alert.alert('Error', 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleResetPassword = async () => {
-    if (!resetOtpVerified) {
-      Alert.alert('Error', 'Please verify your email first');
-      return;
-    }
-
-    if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please enter both passwords');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    const allRequirementsMet = passwordRequirements.every((req) =>
-      req.regex.test(newPassword)
-    );
-    if (!allRequirementsMet) {
-      Alert.alert('Error', 'Please meet all password requirements');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-      if (error) throw error;
-
-      Alert.alert('Success', 'Password updated successfully');
-      setResetModalVisible(false);
-      resetPasswordStates();
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetPasswordStates = () => {
-    setResetEmail('');
-    setResetOtp('');
-    setResetOtpSent(false);
-    setResetOtpVerified(false);
-    setNewPassword('');
-    setConfirmPassword('');
-    setResetResendDisabled(false);
-    setResetCountdown(30);
   };
 
   const handleAuth = async () => {
@@ -310,7 +220,7 @@ export default function AuthScreen() {
 
   const handleOpenTerms = async () => {
     try {
-      const url = 'https://github.com/SvAkshayKumar';
+      const url = 'https:///github.com/svakshaykumar';
       const supported = await Linking.canOpenURL(url);
 
       if (supported) {
@@ -322,181 +232,6 @@ export default function AuthScreen() {
       Alert.alert('Error', 'Failed to open terms and conditions');
     }
   };
-
-  const ResetPasswordModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={resetModalVisible}
-      onRequestClose={() => {
-        setResetModalVisible(false);
-        resetPasswordStates();
-      }}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Reset Password</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setResetModalVisible(false);
-                resetPasswordStates();
-              }}
-              style={styles.closeButton}
-            >
-              <X size={24} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          {!resetOtpVerified ? (
-            <>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="RVU Email (@rvu.edu.in)"
-                  value={resetEmail}
-                  onChangeText={setResetEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  editable={!resetOtpSent}
-                />
-              </View>
-
-              {resetOtpSent ? (
-                <>
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter OTP"
-                      value={resetOtp}
-                      onChangeText={setResetOtp}
-                      keyboardType="numeric"
-                      maxLength={6}
-                    />
-                  </View>
-                  <View style={styles.otpActions}>
-                    <TouchableOpacity
-                      style={[
-                        styles.otpButton,
-                        loading && styles.buttonDisabled,
-                      ]}
-                      onPress={() => handleVerifyOTP(true)}
-                      disabled={loading}
-                    >
-                      <Text style={styles.otpButtonText}>
-                        {loading ? 'Verifying...' : 'Verify OTP'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.otpButton,
-                        resetResendDisabled && styles.buttonDisabled,
-                      ]}
-                      onPress={() => handleGenerateOTP(true)}
-                      disabled={resetResendDisabled}
-                    >
-                      <Text style={styles.otpButtonText}>
-                        {resetResendDisabled
-                          ? `Resend in ${resetCountdown}s`
-                          : 'Resend OTP'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.button, loading && styles.buttonDisabled]}
-                  onPress={() => handleGenerateOTP(true)}
-                  disabled={loading}
-                >
-                  <Text style={styles.buttonText}>
-                    {loading ? 'Sending OTP...' : 'Send OTP'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#64748b" />
-                  ) : (
-                    <Eye size={20} color="#64748b" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showPassword}
-                />
-              </View>
-
-              <View style={styles.requirements}>
-                <Text style={styles.requirementsTitle}>
-                  Password Requirements:
-                </Text>
-                {passwordRequirements.map((req, index) => (
-                  <View key={index} style={styles.requirementItem}>
-                    <View
-                      style={[
-                        styles.requirementDot,
-                        {
-                          backgroundColor: req.regex.test(newPassword)
-                            ? '#10b981'
-                            : '#94a3b8',
-                        },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.requirementText,
-                        {
-                          color: req.regex.test(newPassword)
-                            ? '#10b981'
-                            : '#94a3b8',
-                        },
-                      ]}
-                    >
-                      {req.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleResetPassword}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>
-                  {loading ? 'Updating...' : 'Update Password'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -555,7 +290,7 @@ export default function AuthScreen() {
                 <View style={styles.otpActions}>
                   <TouchableOpacity
                     style={[styles.otpButton, loading && styles.buttonDisabled]}
-                    onPress={() => handleVerifyOTP(false)}
+                    onPress={() => handleVerifyOTP()}
                     disabled={loading}
                   >
                     <Text style={styles.otpButtonText}>
@@ -567,7 +302,7 @@ export default function AuthScreen() {
                       styles.otpButton,
                       resendDisabled && styles.buttonDisabled,
                     ]}
-                    onPress={() => handleGenerateOTP(false)}
+                    onPress={() => handleGenerateOTP()}
                     disabled={resendDisabled}
                   >
                     <Text style={styles.otpButtonText}>
@@ -581,7 +316,7 @@ export default function AuthScreen() {
             ) : (
               <TouchableOpacity
                 style={[styles.verifyButton, loading && styles.buttonDisabled]}
-                onPress={() => handleGenerateOTP(false)}
+                onPress={() => handleGenerateOTP()}
                 disabled={loading}
               >
                 <Text style={styles.verifyButtonText}>
@@ -705,7 +440,10 @@ export default function AuthScreen() {
         </TouchableOpacity>
       </View>
 
-      <ResetPasswordModal />
+      <ResetPasswordModal
+        visible={resetModalVisible}
+        onClose={() => setResetModalVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -879,35 +617,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  closeButton: {
-    padding: 4,
   },
 });
