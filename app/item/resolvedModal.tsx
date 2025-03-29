@@ -8,7 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { X, Star, Mail } from 'lucide-react-native';
+import { X, Star } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 type ResolvedItemDetailsModalProps = {
@@ -31,43 +31,46 @@ export default function ResolvedItemDetailsModal({
   onClose,
   itemId,
 }: ResolvedItemDetailsModalProps) {
-  const [feedbackDetails, setFeedbackDetails] =
-    useState<FeedbackDetails | null>(null);
+  const [feedbackDetails, setFeedbackDetails] = useState<FeedbackDetails | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isVisible && itemId) {
-      fetchFeedbackDetails();
+      fetchFeedbackDetails(itemId);
     }
-  }, [isVisible, itemId]);
-
-  const fetchFeedbackDetails = async () => {
+  }, [isVisible, itemId]); // Ensure it runs when visibility or itemId changes
+  
+  const fetchFeedbackDetails = async (id: string) => {
+    if (!id) return; // Prevent unnecessary fetches
+    setLoading(true);
+    setFeedbackDetails(null); // Reset to prevent stale data
+  
     try {
+      console.log('Fetching feedback for item ID:', id);
+  
       const { data, error } = await supabase
         .from('feedback')
         .select('*')
-        .eq('item_id', itemId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.length > 0) {
-        setFeedbackDetails(data[0]);
-      } else {
-        setFeedbackDetails(null);
-      }
+        .eq('item_id', id)
+        .order('created_at', { ascending: false }) // Fetch the latest feedback
+        .limit(1)
+        .single();
+  
+      console.log('Fetched feedback data:', data);
+  
+      if (error) throw error; 
+  
+      setFeedbackDetails(data || null);
     } catch (error) {
-      console.error('Error fetching feedback details:', error);
+
       Alert.alert('Error', 'Failed to load feedback details');
     } finally {
       setLoading(false);
     }
   };
-
+  
+  
   const renderStars = (rating: number) => {
     return [...Array(5)].map((_, index) => (
       <Star
@@ -82,12 +85,7 @@ export default function ResolvedItemDetailsModal({
   if (!isVisible) return null;
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -99,20 +97,24 @@ export default function ResolvedItemDetailsModal({
           {loading ? (
             <Text style={styles.loadingText}>Loading feedback details...</Text>
           ) : feedbackDetails ? (
-            <ScrollView style={styles.feedbackContainer}>
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Resolved By</Text>
-                <Text style={styles.helperName}>{feedbackDetails.helper_name}</Text>
+                <Text style={styles.helperName}>
+                  {feedbackDetails.helper_name || 'Unknown'}
+                </Text>
                 <Text style={styles.dateText}>
-                  {new Date(feedbackDetails.created_at).toLocaleDateString()}
+                  {feedbackDetails.created_at
+                    ? new Date(feedbackDetails.created_at).toLocaleDateString()
+                    : 'No date available'}
                 </Text>
               </View>
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Rating</Text>
                 <View style={styles.ratingContainer}>
-                  {renderStars(feedbackDetails.rating)}
-                  <Text style={styles.ratingText}>{feedbackDetails.rating}/5</Text>
+                  {renderStars(feedbackDetails.rating || 0)}
+                  <Text style={styles.ratingText}>{feedbackDetails.rating || 'N/A'}/5</Text>
                 </View>
               </View>
 
@@ -129,9 +131,7 @@ export default function ResolvedItemDetailsModal({
                     </Text>
                     {feedbackDetails.experience.length > 100 && (
                       <TouchableOpacity
-                        onPress={() =>
-                          setShowFullDescription(!showFullDescription)
-                        }
+                        onPress={() => setShowFullDescription(!showFullDescription)}
                       >
                         <Text style={styles.readMoreText}>
                           {showFullDescription ? 'Show less' : 'Read more'}
@@ -150,6 +150,7 @@ export default function ResolvedItemDetailsModal({
     </Modal>
   );
 }
+
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     width: '90%',
     maxWidth: 400,
     maxHeight: '80%',
@@ -172,19 +173,20 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 24,
+    marginBottom: 20,
     textAlign: 'center',
   },
-  feedbackContainer: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
     backgroundColor: '#f8fafc',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
   },
   sectionTitle: {
@@ -197,6 +199,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1e293b',
     fontWeight: '500',
+    flexWrap: 'wrap',
   },
   dateText: {
     fontSize: 14,
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   ratingText: {
     fontSize: 16,
@@ -222,29 +225,12 @@ const styles = StyleSheet.create({
   experienceText: {
     fontSize: 16,
     color: '#1e293b',
-    lineHeight: 24,
+    lineHeight: 22,
   },
   readMoreText: {
     color: '#0891b2',
     fontWeight: '500',
     marginTop: 8,
-  },
-  emailButton: {
-    backgroundColor: '#0891b2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
-  },
-  emailIcon: {
-    marginRight: 8,
-  },
-  emailButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   loadingText: {
     textAlign: 'center',

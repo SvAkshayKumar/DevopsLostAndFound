@@ -4,16 +4,14 @@ import {
   Text,
   StyleSheet,
   Image,
-  ScrollView,
   TouchableOpacity,
-  TextInput,
-  Alert,
   Platform,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Camera, Send, ArrowLeft } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { ArrowLeft, Phone, Mail, MessageCircle } from 'lucide-react-native';
 
 type Item = {
   id: string;
@@ -25,63 +23,47 @@ type Item = {
   user_email: string;
   created_at: string;
   status: 'active' | 'resolved';
+  user_phone?: string;
+  user_whatsapp?: string;
 };
 
-type Message = {
+type ContactAttempt = {
   id: string;
-  content: string;
-  sender_email: string;
-  sender_id: string;
+  contacted_by: string;
+  method: 'phone' | 'whatsapp' | 'email';
   created_at: string;
-  image_url: string | null;
-};
-
-type GroupedMessages = {
-  [date: string]: Message[];
+  user_email: string;
+  user_name: string;
+  user_avatar?: string;
 };
 
 export default function ItemScreen() {
   const { id } = useLocalSearchParams();
   const [item, setItem] = useState<Item | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [groupedMessages, setGroupedMessages] = useState<GroupedMessages>({});
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [contactAttempts, setContactAttempts] = useState<ContactAttempt[]>([]);
   const router = useRouter();
 
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUser(user.id);
-      }
-    };
-    getCurrentUser();
     fetchItem();
-    fetchMessages();
-
-    const subscription = supabase
-      .channel('messages')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'messages',
-        filter: `item_id=eq.${id}`,
-      }, () => {
-        fetchMessages();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [id]);
+
+  useEffect(() => {
+    if (item) {
+      checkOwnership();
+    }
+  }, [item]);
+
+  useEffect(() => {
+    if (isOwner) {
+      fetchContactAttempts();
+    }
+  }, [isOwner]);
 
   const fetchItem = async () => {
     const { data, error } = await supabase
       .from('items')
-      .select('*')
+      .select('*, profiles(phone, whatsapp)')
       .eq('id', id)
       .single();
 
@@ -90,127 +72,82 @@ export default function ItemScreen() {
       return;
     }
 
-    setItem(data);
+    setItem({
+      ...data,
+      user_phone: data.profiles?.phone,
+      user_whatsapp: data.profiles?.whatsapp,
+    });
   };
 
-  const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('item_id', id)
-      .order('created_at', { ascending: true });
+  const checkOwnership = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && item) {
+      setIsOwner(user.id === item.user_id);
+    }
+  };
 
+  const fetchContactAttempts = async () => {
+    if (!id) return;
+  
+    const { data, error } = await supabase
+      .from('contact_attempts')
+      .select(`
+        id, contacted_by, method, created_at,
+        profiles:contacted_by (email, full_name, avatar_url)
+      `)
+      .eq('item_id', id)
+      .order('created_at', { ascending: false });
+  
     if (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error fetching contact attempts:', error);
       return;
     }
-
-    setMessages(data || []);
-    groupMessagesByDate(data || []);
+  
+    setContactAttempts(
+      data.map(attempt => ({
+        ...attempt,
+        user_email: attempt.profiles?.email,
+        user_name: attempt.profiles?.full_name,
+        user_avatar: attempt.profiles?.avatar_url,
+      }))
+    );
   };
+  
 
-  const groupMessagesByDate = (messages: Message[]) => {
-    const grouped = messages.reduce((acc: GroupedMessages, message) => {
-      const date = new Date(message.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      if (!acc[date]) {
-        acc[date] = [];
-      }
-      acc[date].push(message);
-      return acc;
-    }, {});
-
-    setGroupedMessages(grouped);
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
-  };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      await sendMessage('', result.assets[0].uri);
-    }
-  };
-
-  const uploadImage = async (uri: string) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const filename = `${user.id}/${Date.now()}.jpg`;
-      
-      const { data, error } = await supabase.storage
-        .from('item-images')
-        .upload(filename, blob);
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('item-images')
-        .getPublicUrl(filename);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-  };
-
-  const sendMessage = async (content: string = '', imageUri?: string) => {
+  const recordContactAttempt = async (method: 'phone' | 'whatsapp' | 'email') => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      Alert.alert('Error', 'Please sign in to send messages');
+      Alert.alert('Error', 'Please sign in to contact the user');
       return;
     }
 
-    if (!content.trim() && !imageUri) {
-      Alert.alert('Error', 'Please provide a message or image');
-      return;
+    const { error } = await supabase.from('contact_attempts').insert({
+      contacted_by: user.id,
+      posted_user_id: item?.user_id,
+      item_id: id,
+      method,
+    });
+
+    if (error) {
+      console.error('Error recording contact attempt:', error);
     }
+  };
 
-    setLoading(true);
+  const handleContact = async (method: 'phone' | 'whatsapp' | 'email') => {
+    if (!item) return;
 
-    try {
-      let imageUrl;
-      if (imageUri) {
-        imageUrl = await uploadImage(imageUri);
-      }
+    await recordContactAttempt(method);
 
-      const { error } = await supabase.from('messages').insert({
-        item_id: id,
-        sender_id: user.id,
-        sender_email: user.email,
-        content: content.trim(),
-        image_url: imageUrl,
-      });
-
-      if (error) throw error;
-      setNewMessage('');
-      await fetchMessages();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
-    } finally {
-      setLoading(false);
+    switch (method) {
+      case 'phone':
+        Linking.openURL(`tel:${item.user_phone}`);
+        break;
+      case 'whatsapp':
+        Linking.openURL(`https://wa.me/${item.user_whatsapp}`);
+        break;
+      case 'email':
+        Linking.openURL(`mailto:${item.user_email}`);
+        break;
     }
   };
 
@@ -231,7 +168,7 @@ export default function ItemScreen() {
         <Text style={styles.headerTitle}>{item.title}</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <View style={styles.content}>
         {item.image_url && (
           <Image source={{ uri: item.image_url }} style={styles.image} />
         )}
@@ -253,72 +190,72 @@ export default function ItemScreen() {
             {'\n'}
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
-        </View>
 
-        <View style={styles.chatSection}>
-          <Text style={styles.chatTitle}>Messages</Text>
-          {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-            <View key={date}>
-              <View style={styles.dateHeader}>
-                <Text style={styles.dateText}>{date}</Text>
-              </View>
-              {dateMessages.map((message) => (
-                <View 
-                  key={message.id} 
-                  style={[
-                    styles.message,
-                    message.sender_id === currentUser ? styles.sentMessage : styles.receivedMessage
-                  ]}
+          {!isOwner && (
+            <View style={styles.contactOptions}>
+              <Text style={styles.contactTitle}>Contact Options</Text>
+              
+              {item.user_phone && (
+                <TouchableOpacity
+                  style={styles.contactButton}
+                  onPress={() => handleContact('phone')}
                 >
-                  {message.sender_id !== currentUser && (
-                    <Text style={styles.messageSender}>{message.sender_email}</Text>
-                  )}
-                  {message.image_url && (
-                    <Image
-                      source={{ uri: message.image_url }}
-                      style={styles.messageImage}
-                    />
-                  )}
-                  {message.content && (
-                    <Text style={[
-                      styles.messageContent,
-                      message.sender_id === currentUser ? styles.sentMessageText : styles.receivedMessageText
-                    ]}>
-                      {message.content}
-                    </Text>
-                  )}
-                  <Text style={styles.messageTime}>
-                    {formatTime(message.created_at)}
-                  </Text>
+                  <Phone size={24} color="#ffffff" />
+                  <Text style={styles.contactButtonText}>Call</Text>
+                </TouchableOpacity>
+              )}
+
+              {item.user_whatsapp && (
+                <TouchableOpacity
+                  style={[styles.contactButton, { backgroundColor: '#25D366' }]}
+                  onPress={() => handleContact('whatsapp')}
+                >
+                  <MessageCircle size={24} color="#ffffff" />
+                  <Text style={styles.contactButtonText}>WhatsApp</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.contactButton, { backgroundColor: '#EA4335' }]}
+                onPress={() => handleContact('email')}
+              >
+                <Mail size={24} color="#ffffff" />
+                <Text style={styles.contactButtonText}>Email</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isOwner && contactAttempts.length > 0 && (
+            <View style={styles.contactAttempts}>
+              <Text style={styles.contactAttemptsTitle}>Contact Attempts</Text>
+              {contactAttempts.map((attempt) => (
+                <View key={attempt.id} style={styles.contactAttempt}>
+                  <View style={styles.contactAttemptUser}>
+                    {attempt.user_avatar && (
+                      <Image
+                        source={{ uri: attempt.user_avatar }}
+                        style={styles.avatar}
+                      />
+                    )}
+                    <View>
+                      <Text style={styles.contactAttemptName}>
+                        {attempt.user_name || attempt.user_email}
+                      </Text>
+                      <Text style={styles.contactAttemptMeta}>
+                        via {attempt.method} • {new Date(attempt.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               ))}
             </View>
-          ))}
+          )}
         </View>
-      </ScrollView>
-
-      <View style={styles.inputContainer}>
-        <TouchableOpacity onPress={pickImage} style={styles.imageButton}>
-          <Camera size={24} color="#0891b2" />
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          value={newMessage}
-          onChangeText={setNewMessage}
-          placeholder="Type a message..."
-          multiline
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-          onPress={() => sendMessage(newMessage)}
-          disabled={loading}
-        >
-          <Send size={24} color="#ffffff" />
-        </TouchableOpacity>
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -381,97 +318,64 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 16,
   },
-  chatSection: {
-    padding: 16,
+  contactOptions: {
+    marginTop: 24,
+    gap: 12,
   },
-  chatTitle: {
+  contactTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0891b2',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  contactButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  contactAttempts: {
+    marginTop: 24,
+  },
+  contactAttemptsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 16,
   },
-  dateHeader: {
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dateText: {
-    fontSize: 12,
-    color: '#64748b',
-    backgroundColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  message: {
-    maxWidth: '80%',
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 12,
-  },
-  sentMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#dcf8c6',
-  },
-  receivedMessage: {
-    alignSelf: 'flex-start',
+  contactAttempt: {
     backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  messageSender: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0891b2',
-    marginBottom: 4,
-  },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  messageContent: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  sentMessageText: {
-    color: '#1e293b',
-  },
-  receivedMessageText: {
-    color: '#1e293b',
-  },
-  messageTime: {
-    fontSize: 10,
-    color: '#94a3b8',
-    alignSelf: 'flex-end',
-  },
-  inputContainer: {
+  contactAttemptUser: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    gap: 12,
   },
-  imageButton: {
-    padding: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#f1f5f9',
+  avatar: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 8,
+  },
+  contactAttemptName: {
     fontSize: 16,
-    maxHeight: 100,
+    fontWeight: '600',
+    color: '#1e293b',
   },
-  sendButton: {
-    backgroundColor: '#0891b2',
-    borderRadius: 20,
-    padding: 8,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
+  contactAttemptMeta: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4,
   },
 });

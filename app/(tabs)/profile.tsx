@@ -30,6 +30,7 @@ import {
   Mail,
   MessageCircle,
   Trash,
+  HelpCircleIcon,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import FeedbackModal from '../item/feedbackModal';
@@ -317,6 +318,19 @@ export default function ProfileScreen() {
     }
   };
 
+  const [showResolvedModalResult, setShowResolvedModalResult] = useState(false);
+  const [selectedResolvedItemId, setSelectedResolvedItemId] = useState<string | null>(null);
+  
+  const handleOpenResolvedModal = (itemId: string) => {
+    setSelectedResolvedItemId(itemId);
+    setShowResolvedModalResult(true);
+  };
+  
+  const handleCloseResolvedModalResult = () => {
+    setShowResolvedModalResult(false);
+    setSelectedResolvedItemId(null);
+  };
+
   const handleOpenFeedbackModal = (itemId: string) => {
     setSelectedItemId(itemId);
     setModalVisible(true);
@@ -337,6 +351,11 @@ export default function ProfileScreen() {
       handleMarkItemResolved(selectedItemId);
     }
   };
+
+  const handleCloseResolvedModal = () => {
+    setShowResolvedModal(false);
+    setSelectedItemId(null);
+  }
 
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
@@ -399,6 +418,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
     );
+    
   }
 
   return (
@@ -522,7 +542,7 @@ export default function ProfileScreen() {
                 </Text>
 
                 {item.status === 'resolved' ? (
-                  <TouchableOpacity onPress={() => setShowResolvedModal(true)}>
+                  <TouchableOpacity onPress={() => handleOpenResolvedModal(item.id)}>
                     <Text
                       style={[
                         styles.itemStatus,
@@ -547,9 +567,9 @@ export default function ProfileScreen() {
               </View>
 
               <ResolvedItemDetailsModal
-                isVisible={showResolvedModal}
-                onClose={() => setShowResolvedModal(false)}
-                itemId={item.id}
+                isVisible={showResolvedModalResult}
+                onClose={handleCloseResolvedModalResult}
+                itemId={selectedResolvedItemId}
               />
             </View>
 
