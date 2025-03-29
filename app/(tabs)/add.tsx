@@ -122,14 +122,23 @@ export default function AddItemScreen() {
     }
   };
 
+  const containerStyle = type === 'lost' 
+    ? styles.containerLost 
+    : styles.containerFound;
+
+  const buttonStyle = type === 'lost'
+    ? styles.submitButtonLost
+    : styles.submitButtonFound;
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, containerStyle]}>
       <View style={styles.content}>
         <View style={styles.typeSelector}>
           <TouchableOpacity
             style={[
               styles.typeButton,
-              type === 'lost' && styles.typeButtonActive,
+              type === 'lost' && styles.typeButtonLostActive,
+              type === 'found' && styles.typeButtonFoundInactive,
             ]}
             onPress={() => setType('lost')}
           >
@@ -145,7 +154,8 @@ export default function AddItemScreen() {
           <TouchableOpacity
             style={[
               styles.typeButton,
-              type === 'found' && styles.typeButtonActive,
+              type === 'found' && styles.typeButtonFoundActive,
+              type === 'lost' && styles.typeButtonLostInactive,
             ]}
             onPress={() => setType('found')}
           >
@@ -160,33 +170,54 @@ export default function AddItemScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>Title</Text>
+        <Text style={[styles.label, type === 'lost' ? styles.labelLost : styles.labelFound]}>
+          Title
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, type === 'lost' ? styles.inputLost : styles.inputFound]}
           value={title}
           onChangeText={setTitle}
           placeholder="Enter item title"
+          placeholderTextColor={type === 'lost' ? '#944141' : '#059669'}
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={[styles.label, type === 'lost' ? styles.labelLost : styles.labelFound]}>
+          Description
+        </Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[
+            styles.input,
+            styles.textArea,
+            type === 'lost' ? styles.inputLost : styles.inputFound,
+          ]}
           value={description}
           onChangeText={setDescription}
           placeholder="Describe the item and where it was lost/found"
+          placeholderTextColor={type === 'lost' ? '#944141' : '#059669'}
           multiline
           numberOfLines={4}
         />
 
-        <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-          <Camera size={24} color="#0891b2" />
-          <Text style={styles.imageButtonText}>Add Photo</Text>
+        <TouchableOpacity 
+          style={[
+            styles.imageButton,
+            type === 'lost' ? styles.imageButtonLost : styles.imageButtonFound,
+          ]} 
+          onPress={pickImage}
+        >
+          <Camera size={24} color={type === 'lost' ? '#944141' : '#059669'} />
+          <Text style={[
+            styles.imageButtonText,
+            type === 'lost' ? styles.imageButtonTextLost : styles.imageButtonTextFound,
+          ]}>
+            Add Photo
+          </Text>
         </TouchableOpacity>
 
         {image && <Image source={{ uri: image }} style={styles.previewImage} />}
 
         <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          style={[buttonStyle, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
@@ -203,7 +234,12 @@ export default function AddItemScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+  },
+  containerLost: {
+    backgroundColor: '#fef2f2',
+  },
+  containerFound: {
+    backgroundColor: '#f0fdfa',
   },
   content: {
     padding: 16,
@@ -211,9 +247,14 @@ const styles = StyleSheet.create({
   typeSelector: {
     flexDirection: 'row',
     marginBottom: 24,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   typeButton: {
     flex: 1,
@@ -221,22 +262,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  typeButtonActive: {
-    backgroundColor: '#ffffff',
+  typeButtonLostActive: {
+    backgroundColor: '#fee2e2',
+  },
+  typeButtonFoundActive: {
+    backgroundColor: '#ccfbf1',
+  },
+  typeButtonLostInactive: {
+    backgroundColor: 'transparent',
+  },
+  typeButtonFoundInactive: {
+    backgroundColor: 'transparent',
   },
   typeButtonText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#64748b',
   },
   typeButtonTextActive: {
-    color: '#0891b2',
+    color: '#0f172a',
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#1e293b',
+    fontWeight: '600',
     marginBottom: 8,
+  },
+  labelLost: {
+    color: '#991b1b',
+  },
+  labelFound: {
+    color: '#047857',
   },
   input: {
     backgroundColor: '#ffffff',
@@ -245,7 +300,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+  },
+  inputLost: {
+    borderColor: '#fecaca',
+  },
+  inputFound: {
+    borderColor: '#99f6e4',
   },
   textArea: {
     height: 120,
@@ -260,13 +320,23 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+  },
+  imageButtonLost: {
+    borderColor: '#fecaca',
+  },
+  imageButtonFound: {
+    borderColor: '#99f6e4',
   },
   imageButtonText: {
     marginLeft: 8,
     fontSize: 16,
-    color: '#0891b2',
     fontWeight: '500',
+  },
+  imageButtonTextLost: {
+    color: '#944141',
+  },
+  imageButtonTextFound: {
+    color: '#059669',
   },
   previewImage: {
     width: '100%',
@@ -278,7 +348,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0891b2',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  submitButtonLost: {
+    backgroundColor: '#944141',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  submitButtonFound: {
+    backgroundColor: '#059669',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
