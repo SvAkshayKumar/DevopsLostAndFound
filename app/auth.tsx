@@ -28,6 +28,9 @@ type PasswordRequirement = {
   regex: RegExp;
   met: boolean;
 };
+const validatePhoneNumber = (phone: string) => {
+  return /^\d{10}$/.test(phone); // Ensures it's exactly 10 digits
+};
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -43,6 +46,7 @@ export default function AuthScreen() {
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const router = useRouter();
 
   const [passwordRequirements, setPasswordRequirements] = useState<
@@ -170,6 +174,12 @@ export default function AuthScreen() {
         return;
       }
 
+      // CHECKING PHONE NUMBER VALIDATION
+      if (!validatePhoneNumber(phoneNumber)) {
+        Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+        return;
+      }
+
       if (!otpVerified) {
         Alert.alert('Error', 'Please verify your email first');
         return;
@@ -197,6 +207,7 @@ export default function AuthScreen() {
           options: {
             data: {
               full_name: fullName,
+              phone_number: phoneNumber,
             },
           },
         });
@@ -256,6 +267,22 @@ export default function AuthScreen() {
               value={fullName}
               onChangeText={setFullName}
               autoCapitalize="words"
+            />
+          </View>
+        )}
+        {isSignUp && (
+          <View style={styles.inputContainer}>
+            <User size={20} color="#64748b" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number (10 digits)"
+              value={phoneNumber}
+              onChangeText={(text) => {
+                const numericText = text.replace(/[^0-9]/g, ''); // Restrict input to only numbers
+                setPhoneNumber(numericText);
+              }}
+              keyboardType="numeric"
+              maxLength={10}
             />
           </View>
         )}
