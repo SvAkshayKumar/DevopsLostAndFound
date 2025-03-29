@@ -6,10 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
   Alert,
 } from 'react-native';
 import { X, Star, Mail } from 'lucide-react-native';
+import { supabase } from '@/lib/supabase';
 
 type ResolvedItemDetailsModalProps = {
   isVisible: boolean;
@@ -44,48 +44,27 @@ export default function ResolvedItemDetailsModal({
 
   const fetchFeedbackDetails = async () => {
     try {
-      const response = await fetch(
-        `https://google.com/kumar?itemId=${itemId}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      const { data, error } = await supabase
+        .from('feedback')
+        .select('*')
+        .eq('item_id', itemId)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch feedback details');
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
-      setFeedbackDetails(data);
+      if (data.length > 0) {
+        setFeedbackDetails(data[0]);
+      } else {
+        setFeedbackDetails(null);
+      }
     } catch (error) {
       console.error('Error fetching feedback details:', error);
       Alert.alert('Error', 'Failed to load feedback details');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const sendEmailReport = async () => {
-    if (!feedbackDetails) return;
-
-    try {
-      const response = await fetch('https://google.com/akshay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          feedback: feedbackDetails,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send email report');
-      }
-
-      Alert.alert('Success', 'Feedback report has been sent to your email');
-    } catch (error) {
-      console.error('Error sending email:', error);
-      Alert.alert('Error', 'Failed to send email report');
     }
   };
 
@@ -123,9 +102,7 @@ export default function ResolvedItemDetailsModal({
             <ScrollView style={styles.feedbackContainer}>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Resolved By</Text>
-                <Text style={styles.helperName}>
-                  {feedbackDetails.helper_name}
-                </Text>
+                <Text style={styles.helperName}>{feedbackDetails.helper_name}</Text>
                 <Text style={styles.dateText}>
                   {new Date(feedbackDetails.created_at).toLocaleDateString()}
                 </Text>
@@ -135,9 +112,7 @@ export default function ResolvedItemDetailsModal({
                 <Text style={styles.sectionTitle}>Rating</Text>
                 <View style={styles.ratingContainer}>
                   {renderStars(feedbackDetails.rating)}
-                  <Text style={styles.ratingText}>
-                    {feedbackDetails.rating}/5
-                  </Text>
+                  <Text style={styles.ratingText}>{feedbackDetails.rating}/5</Text>
                 </View>
               </View>
 
@@ -166,14 +141,6 @@ export default function ResolvedItemDetailsModal({
                   </View>
                 </View>
               )}
-
-              <TouchableOpacity
-                style={styles.emailButton}
-                onPress={sendEmailReport}
-              >
-                <Mail size={20} color="#ffffff" style={styles.emailIcon} />
-                <Text style={styles.emailButtonText}>Send Report to Email</Text>
-              </TouchableOpacity>
             </ScrollView>
           ) : (
             <Text style={styles.noDataText}>No feedback details available</Text>
@@ -183,7 +150,6 @@ export default function ResolvedItemDetailsModal({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,

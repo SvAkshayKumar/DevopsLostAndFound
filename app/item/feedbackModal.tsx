@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Star, X } from 'lucide-react-native';
+import { supabase } from '@/lib/supabase';
 
 interface FeedbackModalProps {
   isVisible: boolean;
@@ -27,7 +28,7 @@ export default function FeedbackModal({
   onClose,
   onSubmit,
   type,
-  itemId, // Ensure itemId is received as a prop
+  itemId,
 }: FeedbackModalProps) {
   const [helperName, setHelperName] = useState('');
   const [rating, setRating] = useState(0);
@@ -38,39 +39,43 @@ export default function FeedbackModal({
       console.error('Error: itemId is missing');
       return;
     }
-
+  
     const feedbackData = {
-      itemId,
-      helperName,
+      item_id: itemId,
+      helper_name: helperName,
       rating,
       experience,
+      created_at: new Date().toISOString(),
     };
-
+  
     try {
-      const response = await fetch('https://google.com/akshay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(feedbackData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit feedback');
+      const { data, error } = await supabase.from('feedback').insert([feedbackData]);
+  
+      if (error) {
+        throw error;
       }
-      console.log(feedbackData);
-      onSubmit(feedbackData); // Call the function passed from parent
-
+  
+      console.log('Feedback saved:', data);
+  
+      // Transform data to match the expected structure before calling onSubmit
+      onSubmit({
+        helperName,  // Match expected format
+        rating,
+        experience,
+      });
+  
       // Reset form
       setHelperName('');
       setRating(0);
       setExperience('');
       onClose();
-      Alert.alert('Success', 'Successfully Given a Feedback');
+      Alert.alert('Success', 'Successfully submitted feedback');
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      onClose();
-      Alert.alert('Success', 'Problem with the server Please Try again !!');
+      Alert.alert('Error', 'Problem with the server, please try again!');
     }
   };
+  
 
   return (
     <Modal
@@ -86,9 +91,7 @@ export default function FeedbackModal({
           </TouchableOpacity>
 
           <Text style={styles.modalTitle}>
-            {type === 'lost'
-              ? 'Who helped you find it?'
-              : 'Share your experience'}
+            {type === 'lost' ? 'Who helped you find it?' : 'Share your experience'}
           </Text>
 
           <TextInput
@@ -142,6 +145,7 @@ export default function FeedbackModal({
     </Modal>
   );
 }
+
 
 const styles = StyleSheet.create({
   modalOverlay: {
