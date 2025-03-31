@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   Image,
+  ScrollView,
   TouchableOpacity,
-  Platform,
-  Linking,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Mail, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, Phone, Mail, MessageSquare } from 'lucide-react-native';
 
 type Item = {
   id: string;
@@ -23,47 +24,63 @@ type Item = {
   user_email: string;
   created_at: string;
   status: 'active' | 'resolved';
-  user_phone?: string;
-  user_whatsapp?: string;
 };
 
-type ContactAttempt = {
+type Contact = {
   id: string;
   contacted_by: string;
-  method: 'phone' | 'whatsapp' | 'email';
+  contacted_by_email: string;
+  method: string;
   created_at: string;
-  user_email: string;
-  user_name: string;
-  user_avatar?: string;
+};
+
+type Profile = {
+  phone_number: string | null;
 };
 
 export default function ItemScreen() {
   const { id } = useLocalSearchParams();
   const [item, setItem] = useState<Item | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [isOwner, setIsOwner] = useState(false);
-  const [contactAttempts, setContactAttempts] = useState<ContactAttempt[]>([]);
+  const [ownerProfile, setOwnerProfile] = useState<Profile | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser(user.id);
+      }
+    };
+    getCurrentUser();
     fetchItem();
+    fetchContacts();
+
+    // Subscribe to contacts changes
+    const subscription = supabase
+      .channel('contact_attempts')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'contact_attempts',
+        filter: `item_id=eq.${id}`,
+      }, () => {
+        fetchContacts();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [id]);
 
-  useEffect(() => {
-    if (item) {
-      checkOwnership();
-    }
-  }, [item]);
-
-  useEffect(() => {
-    if (isOwner) {
-      fetchContactAttempts();
-    }
-  }, [isOwner]);
-
   const fetchItem = async () => {
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: itemData, error } = await supabase
       .from('items')
-      .select('*, profiles(phone, whatsapp)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -72,82 +89,69 @@ export default function ItemScreen() {
       return;
     }
 
-    setItem({
-      ...data,
-      user_phone: data.profiles?.phone,
-      user_whatsapp: data.profiles?.whatsapp,
-    });
-  };
+    setItem(itemData);
+    setIsOwner(user?.id === itemData.user_id);
 
-  const checkOwnership = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && item) {
-      setIsOwner(user.id === item.user_id);
+    if (itemData) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('phone_number')
+        .eq('id', itemData.user_id)
+        .single();
+      
+      setOwnerProfile(profileData);
     }
   };
 
-  const fetchContactAttempts = async () => {
-    if (!id) return;
-  
+  const fetchContacts = async () => {
     const { data, error } = await supabase
       .from('contact_attempts')
       .select(`
-        id, contacted_by, method, created_at,
-        profiles:contacted_by (email, full_name, avatar_url)
+        *,
+        contacted_by_user:contacted_by(email)
       `)
       .eq('item_id', id)
       .order('created_at', { ascending: false });
-  
-    if (error) {
-      console.error('Error fetching contact attempts:', error);
-      return;
-    }
-  
-    setContactAttempts(
-      data.map(attempt => ({
-        ...attempt,
-        user_email: attempt.profiles?.email,
-        user_name: attempt.profiles?.full_name,
-        user_avatar: attempt.profiles?.avatar_url,
-      }))
-    );
-  };
-  
 
-  const recordContactAttempt = async (method: 'phone' | 'whatsapp' | 'email') => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      Alert.alert('Error', 'Please sign in to contact the user');
+    if (error) {
+      console.error('Error fetching contacts:', error);
       return;
     }
 
-    const { error } = await supabase.from('contact_attempts').insert({
-      contacted_by: user.id,
-      posted_user_id: item?.user_id,
-      item_id: id,
-      method,
-    });
-
-    if (error) {
-      console.error('Error recording contact attempt:', error);
-    }
+    setContacts(data || []);
   };
 
-  const handleContact = async (method: 'phone' | 'whatsapp' | 'email') => {
-    if (!item) return;
+  const handleContact = async (method: string) => {
+    if (!currentUser || !item) return;
 
-    await recordContactAttempt(method);
+    try {
+      const { error } = await supabase.from('contact_attempts').insert({
+        contacted_by: currentUser,
+        posted_user_id: item.user_id,
+        item_id: id,
+        method,
+      });
 
-    switch (method) {
-      case 'phone':
-        Linking.openURL(`tel:${item.user_phone}`);
-        break;
-      case 'whatsapp':
-        Linking.openURL(`https://wa.me/${item.user_whatsapp}`);
-        break;
-      case 'email':
-        Linking.openURL(`mailto:${item.user_email}`);
-        break;
+      if (error) throw error;
+
+      switch (method) {
+        case 'phone':
+          if (ownerProfile?.phone_number) {
+            Linking.openURL(`tel:${ownerProfile.phone_number}`);
+          }
+          break;
+        case 'email':
+          Linking.openURL(`mailto:${item.user_email}`);
+          break;
+        case 'sms':
+          if (ownerProfile?.phone_number) {
+            Linking.openURL(`sms:${ownerProfile.phone_number}`);
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      Alert.alert('Error', 'Failed to record contact');
     }
   };
 
@@ -168,7 +172,7 @@ export default function ItemScreen() {
         <Text style={styles.headerTitle}>{item.title}</Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         {item.image_url && (
           <Image source={{ uri: item.image_url }} style={styles.image} />
         )}
@@ -190,72 +194,62 @@ export default function ItemScreen() {
             {'\n'}
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
+        </View>
 
-          {!isOwner && (
-            <View style={styles.contactOptions}>
-              <Text style={styles.contactTitle}>Contact Options</Text>
-              
-              {item.user_phone && (
+        {isOwner ? (
+          <View style={styles.contactsList}>
+            <Text style={styles.contactsTitle}>Contact Requests</Text>
+            {contacts.map((contact) => (
+              <View key={contact.id} style={styles.contactItem}>
+                <Text style={styles.contactEmail}>
+                  {contact.contacted_by_user.email}
+                </Text>
+                <Text style={styles.contactMethod}>
+                  via {contact.method}
+                </Text>
+                <Text style={styles.contactTime}>
+                  {new Date(contact.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+            {contacts.length === 0 && (
+              <Text style={styles.noContacts}>No contact requests yet</Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.contactOptions}>
+            <Text style={styles.contactTitle}>Contact Options</Text>
+            {ownerProfile?.phone_number && (
+              <>
                 <TouchableOpacity
                   style={styles.contactButton}
                   onPress={() => handleContact('phone')}
                 >
-                  <Phone size={24} color="#ffffff" />
+                  <Phone size={24} color="#0891b2" />
                   <Text style={styles.contactButtonText}>Call</Text>
                 </TouchableOpacity>
-              )}
-
-              {item.user_whatsapp && (
                 <TouchableOpacity
-                  style={[styles.contactButton, { backgroundColor: '#25D366' }]}
-                  onPress={() => handleContact('whatsapp')}
+                  style={styles.contactButton}
+                  onPress={() => handleContact('sms')}
                 >
-                  <MessageCircle size={24} color="#ffffff" />
-                  <Text style={styles.contactButtonText}>WhatsApp</Text>
+                  <MessageSquare size={24} color="#0891b2" />
+                  <Text style={styles.contactButtonText}>Send SMS</Text>
                 </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[styles.contactButton, { backgroundColor: '#EA4335' }]}
-                onPress={() => handleContact('email')}
-              >
-                <Mail size={24} color="#ffffff" />
-                <Text style={styles.contactButtonText}>Email</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {isOwner && contactAttempts.length > 0 && (
-            <View style={styles.contactAttempts}>
-              <Text style={styles.contactAttemptsTitle}>Contact Attempts</Text>
-              {contactAttempts.map((attempt) => (
-                <View key={attempt.id} style={styles.contactAttempt}>
-                  <View style={styles.contactAttemptUser}>
-                    {attempt.user_avatar && (
-                      <Image
-                        source={{ uri: attempt.user_avatar }}
-                        style={styles.avatar}
-                      />
-                    )}
-                    <View>
-                      <Text style={styles.contactAttemptName}>
-                        {attempt.user_name || attempt.user_email}
-                      </Text>
-                      <Text style={styles.contactAttemptMeta}>
-                        via {attempt.method} • {new Date(attempt.created_at).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
+              </>
+            )}
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => handleContact('email')}
+            >
+              <Mail size={24} color="#0891b2" />
+              <Text style={styles.contactButtonText}>Send Email</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -269,23 +263,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-    ...Platform.select({
-      ios: {
-        paddingTop: 60,
-      },
-      android: {
-        paddingTop: 40,
-      },
-    }),
   },
   backButton: {
-    padding: 8,
+    marginRight: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
-    marginLeft: 8,
   },
   content: {
     flex: 1,
@@ -297,6 +282,8 @@ const styles = StyleSheet.create({
   },
   details: {
     padding: 16,
+    backgroundColor: '#ffffff',
+    marginBottom: 16,
   },
   type: {
     alignSelf: 'flex-start',
@@ -310,72 +297,72 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     color: '#1e293b',
-    marginBottom: 12,
+    marginBottom: 16,
     lineHeight: 24,
   },
   meta: {
     fontSize: 14,
     color: '#64748b',
+  },
+  contactsList: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+  },
+  contactsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
     marginBottom: 16,
   },
+  contactItem: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  contactEmail: {
+    fontSize: 16,
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  contactMethod: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  contactTime: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  noContacts: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    padding: 32,
+  },
   contactOptions: {
-    marginTop: 24,
-    gap: 12,
+    padding: 16,
+    backgroundColor: '#ffffff',
   },
   contactTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0891b2',
     padding: 16,
-    borderRadius: 12,
-    gap: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    marginBottom: 12,
   },
   contactButtonText: {
-    color: '#ffffff',
+    marginLeft: 12,
     fontSize: 16,
-    fontWeight: '600',
-  },
-  contactAttempts: {
-    marginTop: 24,
-  },
-  contactAttemptsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
-  contactAttempt: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  contactAttemptUser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  contactAttemptName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  contactAttemptMeta: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
+    color: '#0891b2',
+    fontWeight: '500',
   },
 });
