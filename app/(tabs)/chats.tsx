@@ -6,83 +6,157 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
+type ContactPreview = {
+  user_id: string;
+  full_name: string;
+  email: string;
+  avatar_url?: string;
+  last_contact_time: string;
+};
+
 export default function ChatsScreen() {
-  const [contacts, setContacts] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [contacts, setContacts] = useState<ContactPreview[]>([]);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const subscriptionRef = useRef(null);
+  const subscriptionRef = useRef<any>(null);
 
   useEffect(() => {
     const setupContacts = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        setError('Failed to get authenticated user: ' + authError.message);
+        return;
+      }
+      
       if (user) {
         setCurrentUser(user.id);
         await fetchContacts(user.id);
+
+        subscriptionRef.current = supabase
+          .channel('contact_attempts')
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'contact_attempts',
+            filter: `posted_user_id=eq.${user.id}`,
+          }, () => {
+            fetchContacts(user.id);
+          })
+          .subscribe((status: string) => {
+            console.log('Subscription status:', status);
+          });
       }
     };
 
     setupContacts();
+
+    return () => {
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+      }
+    };
   }, []);
 
-  const fetchContacts = async (userId) => {
+  const fetchContacts = async (userId: string) => {
     try {
-      // Fetch unique user IDs from messages table
-      const { data: messageContacts, error: messageError } = await supabase
-        .from('messages')
-        .select('sender_id, receiver_id')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+      console.log('Fetching contacts for user:', userId);
 
-      if (messageError) throw messageError;
-
-      // Extract unique user IDs
-      const uniqueUserIds = new Set();
-      messageContacts.forEach(({ sender_id, receiver_id }) => {
-        if (sender_id !== userId) uniqueUserIds.add(sender_id);
-        if (receiver_id !== userId) uniqueUserIds.add(receiver_id);
-      });
-
-      // Fetch unique user IDs from contact_attempts table
+      // Fetch contact attempts
       const { data: contactAttempts, error: contactError } = await supabase
         .from('contact_attempts')
-        .select('created_by')
-        .eq('posted_user_id', userId);
+        .select('id, contacted_by, created_at, posted_user_id')
+        .eq('posted_user_id', userId)
+        .order('created_at', { ascending: false });
 
-      if (contactError) throw contactError;
+      if (contactError) throw new Error('Contact attempts error: ' + contactError.message);
+      if (!contactAttempts?.length) {
+        console.log('No contact attempts found');
+        setContacts([]);
+        return;
+      }
 
-      contactAttempts.forEach(({ created_by }) => {
-        if (created_by !== userId) uniqueUserIds.add(created_by);
-      });
+      console.log('Contact attempts found:', contactAttempts.length);
 
-      // Fetch user profiles
+      // Get unique user IDs
+      const uniqueUserIds = [...new Set(contactAttempts.map(attempt => attempt.contacted_by))];
+      console.log('Unique user IDs:', uniqueUserIds);
+
+      // Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, avatar_url')
-        .in('id', Array.from(uniqueUserIds));
+        .select('id, email, full_name, avatar_url, created_at')
+        .in('id', uniqueUserIds);
 
-      if (profileError) throw profileError;
+      if (profileError) throw new Error('Profiles error: ' + profileError.message);
+      if (!profiles?.length) {
+        console.log('No profiles found for users');
+        setContacts([]);
+        return;
+      }
 
-      setContacts(profiles);
-    } catch (error) {
-      console.error('Error fetching contacts:', error);
+      console.log('Profiles found:', profiles);
+
+      // Map contacts
+      const contactMap = new Map<string, ContactPreview>();
+      profiles.forEach(profile => {
+        const lastContact = contactAttempts.find(attempt => attempt.contacted_by === profile.id);
+        contactMap.set(profile.id, {
+          user_id: profile.id,
+          full_name: profile.full_name || 'Anonymous User',
+          email: profile.email || 'No email',
+          avatar_url: profile.avatar_url,
+          last_contact_time: lastContact?.created_at || profile.created_at,
+        });
+      });
+
+      const sortedContacts = Array.from(contactMap.values()).sort(
+        (a, b) => new Date(b.last_contact_time).getTime() - new Date(a.last_contact_time).getTime()
+      );
+      setContacts(sortedContacts);
+      console.log('Final contacts:', sortedContacts);
+    } catch (err: any) {
+      console.error('Fetch contacts error:', err);
+      setError(err.message);
     }
   };
 
-  const renderItem = ({ item }) => (
+  const formatTime = (dateString: string) => {
+    const now = new Date();
+    const contactDate = new Date(dateString);
+    const diffDays = Math.floor((now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return contactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return contactDate.toLocaleDateString('en-US', { weekday: 'long' });
+    return contactDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const renderItem = ({ item }: { item: ContactPreview }) => (
     <TouchableOpacity
-      style={styles.contactItem}
-      onPress={() => router.push(`/chat/${item.id}`)}
+      style={styles.chatItem}
+      onPress={() => router.push(`/chat/${item.user_id}`)}
     >
-      <Image 
-        source={{ uri: item.avatar_url || 'https://via.placeholder.com/60' }} 
-        style={styles.avatar} 
-      />
+      <View style={styles.avatarContainer}>
+        {item.avatar_url ? (
+          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={styles.defaultAvatar}>
+            <Text style={styles.defaultAvatarText}>
+              {item.full_name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </View>
       <View style={styles.contactInfo}>
-        <Text style={styles.fullName}>{item.full_name || 'Unknown User'}</Text>
-        <Text style={styles.email}>{item.email}</Text>
+        <Text style={styles.fullName}>{item.full_name}</Text>
+        <Text style={styles.email} numberOfLines={1}>{item.email}</Text>
+        <Text style={styles.timestamp}>{formatTime(item.last_contact_time)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -92,8 +166,15 @@ export default function ChatsScreen() {
       <FlatList
         data={contacts}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.emptyStateText}>No contacts found</Text>}
+        keyExtractor={(item) => item.user_id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {error ? 'Error loading contacts' : 'No contacts yet'}
+            </Text>
+          </View>
+        }
       />
     </View>
   );
@@ -102,88 +183,79 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f5f5f5',
   },
   listContent: {
-    padding: 16,
+    padding: 10,
   },
   chatItem: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  thumbnail: {
-    width: 60,
-    height: 60,
+    padding: 15,
+    backgroundColor: 'white',
     borderRadius: 8,
-    marginRight: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  chatInfo: {
+  avatarContainer: {
+    marginRight: 15,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  defaultAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#666',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  defaultAvatarText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  contactInfo: {
     flex: 1,
   },
-  itemTitle: {
+  fullName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 2,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  otherUser: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 2,
-  },
-  lastMessage: {
+  email: {
     fontSize: 14,
-    color: '#64748b',
-    marginBottom: 2,
+    color: '#666',
+    marginTop: 2,
   },
   timestamp: {
     fontSize: 12,
-    color: '#94a3b8',
-  },
-  rightSection: {
-    alignItems: 'flex-end',
-    marginLeft: 8,
-  },
-  type: {
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  unreadBadge: {
-    backgroundColor: '#0891b2',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  unreadCount: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#999',
+    marginTop: 4,
   },
   emptyState: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    padding: 32,
+    alignItems: 'center',
+    padding: 20,
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
+    color: '#666',
+  },
+  errorContainer: {
+    padding: 10,
+    backgroundColor: '#fee2e2',
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
   },
 });

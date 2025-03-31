@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Mail, MessageSquare } from 'lucide-react-native';
+import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle } from 'lucide-react-native';
 
 type Item = {
   id: string;
@@ -134,7 +134,7 @@ export default function ItemScreen() {
 
       if (error) throw error;
 
-      switch (method) {
+      switch (method) { 
         case 'phone':
           if (ownerProfile?.phone_number) {
             Linking.openURL(`tel:${ownerProfile.phone_number}`);
@@ -145,7 +145,12 @@ export default function ItemScreen() {
           break;
         case 'sms':
           if (ownerProfile?.phone_number) {
-            Linking.openURL(`sms:${ownerProfile.phone_number}`);
+            Linking.openURL(`sms:${ownerProfile.phone_number}?body=Hello, I am contacting you regarding...`);
+          }
+          break;
+        case 'whatsapp':
+          if (ownerProfile?.phone_number) {
+            Linking.openURL(`https://wa.me/${ownerProfile.phone_number}`);
           }
           break;
       }
@@ -192,13 +197,13 @@ export default function ItemScreen() {
           <Text style={styles.meta}>
             Posted by {item.user_email}
             {'\n'}
-            {new Date(item.created_at).toLocaleDateString()}
+            {new Date(item.created_at).toLocaleString()}
           </Text>
         </View>
 
         {isOwner ? (
           <View style={styles.contactsList}>
-            <Text style={styles.contactsTitle}>Contact Requests</Text>
+            <Text style={styles.contactsTitle}>Reach Out Attempts</Text>
             {contacts.map((contact) => (
               <View key={contact.id} style={styles.contactItem}>
                 <Text style={styles.contactEmail}>
@@ -208,7 +213,7 @@ export default function ItemScreen() {
                   via {contact.method}
                 </Text>
                 <Text style={styles.contactTime}>
-                  {new Date(contact.created_at).toLocaleDateString()}
+                  {new Date(contact.created_at).toLocaleString()}
                 </Text>
               </View>
             ))}
@@ -227,6 +232,13 @@ export default function ItemScreen() {
                 >
                   <Phone size={24} color="#0891b2" />
                   <Text style={styles.contactButtonText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.contactButton}
+                  onPress={() => handleContact('whatsapp')}
+                >
+                  <MessageCircle size={24} color="#0891b2" />
+                  <Text style={styles.contactButtonText}>Send Whatsapp</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.contactButton}
@@ -251,10 +263,16 @@ export default function ItemScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
+  body : {
+    paddingTop : 50
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    // backgroundColor: 'white',
+    // paddingTop: 24, // Prevent content from touching the top
+    // marginTop : 0
   },
   header: {
     flexDirection: 'row',
@@ -263,35 +281,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    elevation: 2,
   },
   backButton: {
     marginRight: 16,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1e293b',
+    // marginTop: ,
   },
   content: {
     flex: 1,
+    padding: 16,
   },
   image: {
     width: '100%',
     height: 300,
     resizeMode: 'cover',
+    borderRadius: 12,
   },
   details: {
     padding: 16,
     backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
     marginBottom: 16,
   },
   type: {
     alignSelf: 'flex-start',
     fontSize: 12,
     fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#e0f2fe',
+    color: '#0284c7',
     marginBottom: 12,
   },
   description: {
@@ -307,28 +337,41 @@ const styles = StyleSheet.create({
   contactsList: {
     padding: 16,
     backgroundColor: '#ffffff',
-  },
-  contactsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
     marginBottom: 16,
   },
+  contactsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 16,
+    marginTop: 8,
+  },
   contactItem: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   contactEmail: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#1e293b',
     marginBottom: 4,
   },
   contactMethod: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#475569',
     marginBottom: 4,
   },
   contactTime: {
@@ -344,10 +387,17 @@ const styles = StyleSheet.create({
   contactOptions: {
     padding: 16,
     backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 16,
   },
   contactTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1e293b',
     marginBottom: 16,
   },
@@ -355,14 +405,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
+    backgroundColor: '#e0f2fe',
+    borderRadius: 12,
     marginBottom: 12,
   },
   contactButtonText: {
     marginLeft: 12,
     fontSize: 16,
-    color: '#0891b2',
-    fontWeight: '500',
+    color: '#0284c7',
+    fontWeight: '600',
   },
 });
