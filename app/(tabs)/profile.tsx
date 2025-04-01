@@ -36,6 +36,7 @@ import * as ImagePicker from 'expo-image-picker';
 import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
 import ResolvedItemDetailsModal from '../item/resolvedModal';
+import { send as smtpSend } from 'smtpjs'; 
 
 type UserProfile = {
   id: string;
@@ -369,29 +370,41 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleSendEmail = async () => {
-    const templateParams = {
-      to_email: 'forgotemail169@gmail.com', // Email recipient
-      from_name: 'User', // You can replace this with the actual user's name
-      message: 'Hello, I need help with my account.', // Default message
+  const handleSendEmail = async (contactMessage) => {
+    if (!contactMessage.trim()) {
+      Alert.alert("Error", "Please enter a message before sending.");
+      return;
+    }
+  
+    const smtpParams = {
+      Host: "smtp.gmail.com",
+      Username: "sendingemail@gmail.com", // Your email
+      Password: "XXXX XXXX XXXX XXXX",    // Your app password
+      To: "receiveremail@gmail.com",      // Recipient email
+      From: "sendingemail@gmail.com",    // Your email
+      Subject: "Bug Report from Mobile App",
+      Body: `Bug Report:\n\n${contactMessage}`,
     };
-
+  
     try {
-      await send(
-        'service_oxdcwo7', // EmailJS Service ID
-        'template_gg7agco', // EmailJS Template ID
-        templateParams,
-        { publicKey: 'uMH30Zes5JjS0nNxv' } // Correct format for EmailJS Public Key
-      );
-      Alert.alert('Thank you for reporting the bug!');
+      smtpSend(smtpParams)
+        .then((response) => {
+          Alert.alert("Success", "Bug report sent successfully!");
+        })
+        .catch((error) => {
+          console.error("Error sending bug report:", error);
+          Alert.alert("Failed to send the report. Please try again.");
+        });
     } catch (error) {
-      console.error('Email sending failed:', error);
-      Alert.alert('Failed to send the report. Please try again.');
+      console.error('Error:', error);
+      Alert.alert("Error", "An unexpected error occurred.");
     }
   };
 
+  
+
   const handleEmailRedirect = () => {
-    const mailtoUrl = `https://mail.google.com/mail/u/0/#inbox?compose=KnqNxpXWvDSNtpJdZXNWMsTwClBfJFRzSFpMhMGgsDQFTpprZfkkqNnQKfJQpTrLdSPWRQjKmZxwrxLMTBwdwHQGThXsBqmLQKRlTkjkRcRvlShmmKfJTMQhphbjSNzSGknHNNVTRTwfzdwgPgDvZ`;
+    const mailtoUrl = 'mailto:adevadiga2005@gmail.com';
 
     Linking.openURL(mailtoUrl).catch((err) =>
       console.error('Error opening mail app', err)
@@ -679,7 +692,11 @@ export default function ProfileScreen() {
                   />
                   <TouchableOpacity
                     style={styles.button}
-                    onPress={handleSendEmail}
+                    onPress={async () => {
+                      await handleSendEmail(contactMessage);
+                      setIsBugModalOpen(false); // Close the modal after sending email
+                      setContactMessage(''); // Clear the contact message if necessary
+                    }}
                   >
                     <Text style={styles.buttonText}>Send</Text>
                   </TouchableOpacity>
