@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import emailjs from '@emailjs/browser';
 import PropTypes from 'prop-types';
 
 const PasswordModals = ({
@@ -27,7 +26,6 @@ const PasswordModals = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [isOldPasswordVerified, setIsOldPasswordVerified] = useState(false);
-  const [bugDescription, setBugDescription] = useState('');
 
   // Reset modal states
   const resetPasswordStates = () => {
@@ -84,35 +82,53 @@ const PasswordModals = ({
     }
   };
 
-  // Send OTP for forgot password
   const handleSendOtp = async () => {
-    try {
-      if (!user?.email) {
+    if (!user?.email) {
         Alert.alert('Error', 'User email not found');
         return;
       }
+    try {
+      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email : user.email,
+          type: 'numeric',
+          organization: 'RVU Lost & Found',
+          subject: 'OTP Verification',
+        }),
+      });
 
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to send OTP');
 
       Alert.alert('Success', 'OTP has been sent to your email');
     } catch (error) {
-      console.error('Error sending OTP:', error);
-      Alert.alert('Error', 'Failed to send OTP');
+      console.error(error);
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
     }
   };
 
-  // Verify OTP (Dummy logic, should be replaced with Supabase OTP verification)
   const handleVerifyOtp = async () => {
     try {
-      if (otp === '123456') {
-        setIsOtpVerified(true);
-      } else {
-        Alert.alert('Error', 'Invalid OTP');
-      }
+      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email : user.email,
+          otp,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Invalid OTP');
+
+      setIsOtpVerified(true); // Update state on successful verification
+      Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
-      console.error('Error verifying OTP:', error);
-      Alert.alert('Error', 'OTP verification failed');
+      Alert.alert('Error', 'Invalid OTP. Please try again.');
     }
   };
 
@@ -136,6 +152,25 @@ const PasswordModals = ({
       Alert.alert('Error', 'Invalid password');
     }
   };
+
+  const PasswordRequirements = () => (
+    <View style={styles.requirements}>
+      <Text style={styles.requirementsTitle}>Password Requirements:</Text>
+      {passwordRequirements.map((req, index) => (
+        <View key={index} style={styles.requirementItem}>
+          <View
+            style={[
+              styles.requirementDot,
+              { backgroundColor: req.met ? '#10b981' : '#94a3b8' },
+            ]}
+          />
+          <Text style={{ color: req.met ? '#10b981' : '#94a3b8' }}>
+            {req.label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <>
@@ -170,7 +205,7 @@ const PasswordModals = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.linkButton}
-                  onPress={handleSendOtp}
+                  onPress={() => handleSendOtp()} // Fixed to prevent immediate invocation
                 >
                   <Text style={styles.linkText}>Resend OTP</Text>
                 </TouchableOpacity>
@@ -191,6 +226,7 @@ const PasswordModals = ({
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                 />
+                <PasswordRequirements />
                 <TouchableOpacity
                   style={styles.button}
                   onPress={handleResetPassword}
@@ -225,7 +261,7 @@ const PasswordModals = ({
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Reset Password</Text>
+            <Text style={styles.modalTitle}>Update Password</Text>
 
             {!isOldPasswordVerified ? (
               <>
@@ -259,26 +295,7 @@ const PasswordModals = ({
                   onChangeText={setConfirmPassword}
                   secureTextEntry
                 />
-
-                {/* Real-time password validation */}
-                <View style={styles.requirements}>
-                  <Text style={styles.requirementsTitle}>
-                    Password Requirements:
-                  </Text>
-                  {passwordRequirements.map((req, index) => (
-                    <View key={index} style={styles.requirementItem}>
-                      <View
-                        style={[
-                          styles.requirementDot,
-                          { backgroundColor: req.met ? '#10b981' : '#94a3b8' },
-                        ]}
-                      />
-                      <Text style={{ color: req.met ? '#10b981' : '#94a3b8' }}>
-                        {req.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                <PasswordRequirements />
 
                 <TouchableOpacity
                   style={styles.button}

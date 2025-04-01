@@ -380,7 +380,7 @@ export default function ProfileScreen() {
         'template_gg7agco', // Your EmailJS Template ID
         {
           name: "Akshay",
-          time: "2025-04-01 10:30 AM", // Example timestamp
+          time: new Date().toLocaleString(),
           userEmail: "forgotemail169@gmail.com",
           message: contactMessage,
           to_email: "forgotemail169@gmail.com", // Change to recipient's email
@@ -639,7 +639,7 @@ export default function ProfileScreen() {
               onPress={() => setIsResetModalOpen(true)}
             >
               <KeyRound size={20} color="#0891b2" />
-              <Text style={styles.drawerItemText}>Reset Password</Text>
+              <Text style={styles.drawerItemText}>Update Password</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
