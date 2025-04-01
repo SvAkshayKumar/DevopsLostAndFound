@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import { send } from '@emailjs/react-native';
+import emailjs from '@emailjs/browser';
 import {
   LogOut,
   Camera,
@@ -36,7 +36,9 @@ import * as ImagePicker from 'expo-image-picker';
 import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
 import ResolvedItemDetailsModal from '../item/resolvedModal';
-import { send as smtpSend } from 'smtpjs'; 
+
+const EMAIL_USER = 'hospital.carecloud@gmail.com'
+const EMAIL_PASSWORD = 'wkig gfnc ohcq ywso'
 
 type UserProfile = {
   id: string;
@@ -370,38 +372,29 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleSendEmail = async (contactMessage) => {
-    if (!contactMessage.trim()) {
-      Alert.alert("Error", "Please enter a message before sending.");
-      return;
-    }
-  
-    const smtpParams = {
-      Host: "smtp.gmail.com",
-      Username: "sendingemail@gmail.com", // Your email
-      Password: "XXXX XXXX XXXX XXXX",    // Your app password
-      To: "receiveremail@gmail.com",      // Recipient email
-      From: "sendingemail@gmail.com",    // Your email
-      Subject: "Bug Report from Mobile App",
-      Body: `Bug Report:\n\n${contactMessage}`,
-    };
-  
+  const handleSendEmail = async () => {
     try {
-      smtpSend(smtpParams)
-        .then((response) => {
-          Alert.alert("Success", "Bug report sent successfully!");
-        })
-        .catch((error) => {
-          console.error("Error sending bug report:", error);
-          Alert.alert("Failed to send the report. Please try again.");
-        });
+      // Sending the email via EmailJS with template parameters
+      await emailjs.send(
+        'service_oxdcwo7', // Your EmailJS Service ID
+        'template_gg7agco', // Your EmailJS Template ID
+        {
+          name: "Akshay",
+          time: "2025-04-01 10:30 AM", // Example timestamp
+          userEmail: "forgotemail169@gmail.com",
+          message: contactMessage,
+          to_email: "forgotemail169@gmail.com", // Change to recipient's email
+          from_name: "Akshay",
+        },
+        'r9NFke4Ef7f9_MHKx' // Your EmailJS Public Key
+      );
+      
+      Alert.alert('Thank you for reporting the bug!');
     } catch (error) {
-      console.error('Error:', error);
-      Alert.alert("Error", "An unexpected error occurred.");
+      console.error('Email sending failed:', error);
+      Alert.alert('Failed to send the report. Please try again.');
     }
   };
-
-  
 
   const handleEmailRedirect = () => {
     const mailtoUrl = 'mailto:adevadiga2005@gmail.com';
@@ -693,7 +686,7 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     style={styles.button}
                     onPress={async () => {
-                      await handleSendEmail(contactMessage);
+                      await handleSendEmail();
                       setIsBugModalOpen(false); // Close the modal after sending email
                       setContactMessage(''); // Clear the contact message if necessary
                     }}
