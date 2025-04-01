@@ -1,8 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Button } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 const ChatScreen = () => {
   const { chatId } = useLocalSearchParams(); // Capture chatId
+  const navigation = useNavigation(); // Get navigation object
 
   return (
     <View style={styles.container}>
@@ -11,6 +13,9 @@ const ChatScreen = () => {
         The chat feature is not available yet. Stay tuned for updates! 🎉
       </Text>
       <Text style={styles.chatId}>Chat ID: {chatId}</Text>
+
+      {/* Go Back Button */}
+      <Button title="Go Back" onPress={() => navigation.goBack()} />
     </View>
   );
 };
@@ -39,6 +44,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#888",
     fontStyle: "italic",
+    marginBottom: 20,
   },
 });
 
