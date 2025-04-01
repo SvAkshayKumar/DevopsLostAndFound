@@ -142,58 +142,26 @@ export default function ProfileScreen() {
     }
   };
 
+  const [isModalVisible, setisModalVisible] = useState(false);
+
   const pickImage = async () => {
-  try {
-    // 1️⃣ Request Camera & Gallery Permissions
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      // 1️⃣ Request Camera & Gallery Permissions
+      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-      Alert.alert('Permission Denied', 'You need to grant both Camera and Media Library permissions.');
-      return;
+      if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
+        Alert.alert('Permission Denied', 'You need to grant both Camera and Media Library permissions.');
+        return;
+      }
+
+      // 2️⃣ Show the image source picker modal
+      setisModalVisible(true); // Open the image picker modal
+    } catch (error) {
+      console.error('Error selecting image:', error);
+      Alert.alert('Error', 'Something went wrong while selecting an image.');
     }
-
-    // 2️⃣ Show a selection dialog (Camera or Gallery)
-    Alert.alert(
-      'Select Option',
-      'Choose an image source',
-      [
-        {
-          text: '📸 Open Camera',
-          onPress: async () => {
-            const result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED
-              allowsEditing: true,
-              quality: 1,
-            });
-
-            if (!result.canceled && result.assets?.length) {
-              await uploadAvatar(result.assets[0].uri);
-            }
-          },
-        },
-        {
-          text: '🖼️ Pick from Gallery',
-          onPress: async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED
-              allowsEditing: true,
-              quality: 1,
-            });
-
-            if (!result.canceled && result.assets?.length) {
-              await uploadAvatar(result.assets[0].uri);
-            }
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  } catch (error) {
-    console.error('Error selecting image:', error);
-    Alert.alert('Error', 'Something went wrong while selecting an image.');
-  }
-};
+  };
   
 
   const uploadAvatar = async (uri: string) => {
@@ -770,6 +738,62 @@ export default function ProfileScreen() {
                 <Text style={styles.modalAvatarText}>Upload New Picture</Text>
               </TouchableOpacity>
 
+              {/* Modal for selecting image source */}
+              <Modal
+                visible={isModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setisModalVisible(false)} // Close modal on request
+              >
+                <View style={styles.modalOverlay1}>
+                  <View style={styles.modalContainer1}>
+                    <Text style={styles.modalTitle1}>Select Image Source</Text>
+
+                    <TouchableOpacity
+                      style={styles.modalOption}
+                      onPress={async () => {
+                        setisModalVisible(false);
+                        const result = await ImagePicker.launchCameraAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          allowsEditing: true,
+                          quality: 1,
+                        });
+                        if (!result.canceled && result.assets?.length) {
+                          await uploadAvatar(result.assets[0].uri);
+                        }
+                      }}
+                    >
+                      <Text style={styles.modalOptionText}>📸 Open Camera</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.modalOption}
+                      onPress={async () => {
+                        setisModalVisible(false);
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          allowsEditing: true,
+                          quality: 1,
+                        });
+                        if (!result.canceled && result.assets?.length) {
+                          await uploadAvatar(result.assets[0].uri);
+                        }
+                      }}
+                    >
+                      <Text style={styles.modalOptionText}>🖼️ Pick from Gallery</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.modalOption}
+                      onPress={() => setisModalVisible(false)} // Close modal
+                    >
+                      <Text style={styles.modalOptionText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+
+
               <TouchableOpacity
                 style={styles.modalAvatarOption}
                 onPress={handleDeleteAvatar}
@@ -1243,5 +1267,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginLeft: 10,
+  },
+  // Modal Overlay (background)
+  modalOverlay1: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for the modal overlay
+  },
+
+  // Modal Container (the box that holds content)
+  modalContainer1: {
+    width: '80%',
+    maxWidth: 400, // Prevents modal from being too wide on larger screens
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5, // Shadow for Android devices
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+
+  // Modal Title (Heading)
+  modalTitle1: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20, // Spacing below the title
+    textAlign: 'center',
+  },
+
+  // Modal Option (each button option)
+  modalOption: {
+    paddingVertical: 12,
+    marginVertical: 8,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 8,
+    width: '100%', // Makes the button full width of the modal
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd', // Border color for the options
+    transition: 'background-color 0.3s', // Smooth transition effect when hovering
+  },
+
+  // Text inside modal options
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333', // Standard dark text color
+    fontWeight: '500',
+  },
+
+  // Hover effect for modal options (when user presses the button, it changes color)
+  modalOptionHover: {
+    backgroundColor: '#ddd', // Slightly darker background on hover
+  },
+
+  // Cancel Button
+  cancelButton: {
+    paddingVertical: 12,
+    marginTop: 10,
+    backgroundColor: '#ff4d4d', // Red for cancel button
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cancelButtonText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '500',
   },
 });
