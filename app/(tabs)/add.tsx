@@ -24,15 +24,55 @@ export default function AddItemScreen() {
   const router = useRouter();
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+    try {
+      // 1️⃣ Request Camera & Gallery Permissions
+      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  
+      if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
+        Alert.alert('Permission Denied', 'You need to grant both Camera and Media Library permissions.');
+        return;
+      }
+  
+      // 2️⃣ Show a selection dialog (Camera or Gallery)
+      Alert.alert(
+        'Select Option',
+        'Choose an image source',
+        [
+          {
+            text: '📸 Open Camera',
+            onPress: async () => {
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED
+                allowsEditing: true,
+                quality: 1,
+              });
+  
+              if (!result.canceled && result.assets?.length) {
+                await uploadImage(result.assets[0].uri);
+              }
+            },
+          },
+          {
+            text: '🖼️ Pick from Gallery',
+            onPress: async () => {
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ FIXED
+                allowsEditing: true,
+                quality: 1,
+              });
+  
+              if (!result.canceled && result.assets?.length) {
+                await uploadImage(result.assets[0].uri);
+              }
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } catch (error) {
+      console.error('Error selecting image:', error);
+      Alert.alert('Error', 'Something went wrong while selecting an image.');
     }
   };
 

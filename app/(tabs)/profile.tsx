@@ -569,7 +569,7 @@ export default function ProfileScreen() {
               <ResolvedItemDetailsModal
                 isVisible={showResolvedModalResult}
                 onClose={handleCloseResolvedModalResult}
-                itemId={selectedResolvedItemId}
+                itemId={selectedResolvedItemId ?? ""}
               />
             </View>
 
