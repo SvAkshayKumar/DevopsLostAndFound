@@ -36,7 +36,7 @@ import {
 import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
 import ResolvedItemDetailsModal from '../item/resolvedModal';
-import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {launchCamera, launchImageLibrary, ImagePickerResponse} from 'react-native-image-picker';
 import * as ImagePicker from 'expo-image-picker';
 
 const EMAIL_USER = 'hospital.carecloud@gmail.com'
@@ -146,47 +146,109 @@ export default function ProfileScreen() {
 
   const [isModalVisible, setIsModalVisible] = useState(false);
 
+  
   const openCamera = async () => {
     setIsModalVisible(false);
-    
-    // Request camera permissions
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to grant camera permission to take photos.");
-      return;
-    }
-  
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
+    const options = {
+      mediaType: 'photo',
+      includeBase64: true,
+      maxHeight: 800,
+      maxWidth: 800,
+      quality: 0.7,
+    };
+
+    launchCamera(options, (response: ImagePickerResponse) => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        console.error('ImagePicker Error:', response.errorMessage);
+        Alert.alert('Error', 'Failed to take photo');
+      } else if (response.assets && response.assets[0].base64) {
+        uploadBase64Image(response.assets[0].base64);
+      }
     });
-  
-    if (!result.canceled) {
-      uploadAvatar(result.assets[0].uri);
-    }
   };
-  
+
   const pickFromGallery = async () => {
     setIsModalVisible(false);
-  
-    // Request media library permissions
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to grant gallery access to select photos.");
-      return;
-    }
-  
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
+    const options = {
+      mediaType: 'photo',
+      includeBase64: true,
+      maxHeight: 800,
+      maxWidth: 800,
+      quality: 0.7,
+    };
+
+    launchImageLibrary(options, (response: ImagePickerResponse) => {
+      if (response.didCancel) {
+        console.log('User cancelled gallery');
+      } else if (response.errorCode) {
+        console.error('ImagePicker Error:', response.errorMessage);
+        Alert.alert('Error', 'Failed to pick image');
+      } else if (response.assets && response.assets[0].base64) {
+        uploadBase64Image(response.assets[0].base64);
+      }
     });
+  };
+
+  const uploadBase64Image = async (base64Image: string) => {
+    try {
+      if (!user?.id) {
+        throw new Error("User ID is missing");
+      }
   
-    if (!result.canceled) {
-      uploadAvatar(result.assets[0].uri);
+      setLoading(true);
+  
+      // Convert base64 to Blob
+      const base64Data = base64Image.split(",")[1] || base64Image;
+      const byteCharacters = atob(base64Data);
+      const byteArrays = [];
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArrays.push(byteCharacters.charCodeAt(i));
+      }
+      const blob = new Blob([new Uint8Array(byteArrays)], { type: "image/jpeg" });
+  
+      const filename = `${user.id}/avatar.jpg`;
+  
+      // Delete existing avatar if any
+      await supabase.storage.from("avatar-images").remove([filename]);
+  
+      // Upload new avatar
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("avatar-images")
+        .upload(filename, blob, {
+          upsert: true,
+          contentType: "image/jpeg",
+        });
+  
+      if (uploadError) throw uploadError;
+  
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("avatar-images")
+        .getPublicUrl(filename);
+  
+      if (!publicUrlData.publicUrl) {
+        throw new Error("Failed to get public URL");
+      }
+  
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrlData.publicUrl })
+        .eq("id", user.id);
+  
+      if (updateError) throw updateError;
+  
+      // Refresh user data
+      await fetchUserData();
+      Alert.alert("Success", "Profile picture updated successfully");
+      setAvatarModalVisible(false);
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      Alert.alert("Error", "Failed to upload profile picture. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -196,57 +258,55 @@ export default function ProfileScreen() {
         throw new Error('User ID is missing');
       }
 
+      setLoading(true);
+
       // Convert image URI to Blob
       const response = await fetch(uri);
       const blob = await response.blob();
       const filename = `${user.id}/avatar.jpg`;
 
-      // Upload to Supabase Storage
-      const { error: deleteError } = await supabase.storage
+      // Delete existing avatar if any
+      await supabase.storage
         .from('avatar-images')
-        .remove([filename]);
+        .remove([filename])
+        .catch(() => {}); // Ignore error if file doesn't exist
 
-      if (deleteError) throw deleteError;
-
-      const { error: updateError1 } = await supabase
-        .from('profiles')
-        .update({ avatar_url: null })
-        .eq('id', user.id);
-
-      if (updateError1) throw updateError1;
-
-      const { data, error: uploadError } = await supabase.storage
+      // Upload new avatar
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatar-images')
-        .upload(filename, blob, { upsert: true });
+        .upload(filename, blob, { 
+          upsert: true,
+          contentType: 'image/jpeg'
+        });
 
       if (uploadError) throw uploadError;
 
-      // Get the public URL of the uploaded image
+      // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from('avatar-images')
         .getPublicUrl(filename);
 
-      const publicUrl = publicUrlData.publicUrl; // ✅ Extracting correct value
-
-      if (!publicUrl) {
+      if (!publicUrlData.publicUrl) {
         throw new Error('Failed to get public URL');
       }
 
-      // Update the user's profile with the new avatar URL
+      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: publicUrlData.publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      // Fetch updated user data
+      // Refresh user data
       await fetchUserData();
-      Alert.alert('Success', 'Profile picture Updated');
+      Alert.alert('Success', 'Profile picture updated successfully');
       setAvatarModalVisible(false);
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      Alert.alert('Error', 'Failed to upload avatar');
+      Alert.alert('Error', 'Failed to upload profile picture. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -368,22 +428,23 @@ export default function ProfileScreen() {
 
   const handleSendEmail = async () => {
     try {
-      // Sending the email via EmailJS with template parameters
-      await emailjs.send(
-        'service_oxdcwo7', // Your EmailJS Service ID
-        'template_gg7agco', // Your EmailJS Template ID
-        {
-          name: "Akshay",
-          time: new Date().toLocaleString(),
-          userEmail: "forgotemail169@gmail.com",
-          message: contactMessage,
-          to_email: "forgotemail169@gmail.com", // Change to recipient's email
-          from_name: "Akshay",
+      const response = await fetch('https://sendfeedback.onrender.com/report-bug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        'r9NFke4Ef7f9_MHKx' // Your EmailJS Public Key
-      );
+        body: JSON.stringify({
+          message: contactMessage,  // Use the message you want to send
+        }),
+      });
+  
+      const data = await response.json();
       
-      Alert.alert('Thank you for reporting the bug!');
+      if (response.status === 200) {
+        Alert.alert('Thank you for reporting the bug!');
+      } else {
+        throw new Error(data.error || 'Failed to send the report');
+      }
     } catch (error) {
       console.error('Email sending failed:', error);
       Alert.alert('Failed to send the report. Please try again.');

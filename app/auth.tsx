@@ -207,7 +207,7 @@ export default function AuthScreen() {
           options: {
             data: {
               full_name: fullName,
-              phone_number: phoneNumber,
+              Phone: phoneNumber,
             },
           },
         });
