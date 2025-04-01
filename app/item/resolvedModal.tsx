@@ -33,18 +33,16 @@ export default function ResolvedItemDetailsModal({
 }: ResolvedItemDetailsModalProps) {
   const [feedbackDetails, setFeedbackDetails] = useState<FeedbackDetails | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (isVisible && itemId) {
-    if (!loading && !feedbackDetails) {  // Fetch only if not already loading and details are empty
+    if (isVisible && itemId) {
       fetchFeedbackDetails(itemId);
     }
-  }
-}, [isVisible, itemId]); 
+  }, [isVisible, itemId]); // Ensure it runs when visibility or itemId changes
   
   const fetchFeedbackDetails = async (id: string) => {
-    if (!id || loading) return; // Prevent unnecessary fetches
+    if (!id) return; // Prevent unnecessary fetches
     setLoading(true);
     setFeedbackDetails(null); // Reset to prevent stale data
   
