@@ -276,14 +276,10 @@ export default function ItemScreen() {
 
 
 const styles = StyleSheet.create({
-  body : {
-    paddingTop : 50
-  },
   container: {
     flex: 1,
-    // backgroundColor: 'white',
-    // paddingTop: 24, // Prevent content from touching the top
-    // marginTop : 0
+    backgroundColor: '#f8fafc',
+    marginTop : 45
   },
   header: {
     flexDirection: 'row',
