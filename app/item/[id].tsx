@@ -112,17 +112,28 @@ export default function ItemScreen() {
       `)
       .eq('item_id', id)
       .order('created_at', { ascending: false });
-
+    
     if (error) {
       console.error('Error fetching contacts:', error);
       return;
     }
+    const formattedContacts = data.map(contact => ({
+    id: contact.id,
+    contacted_by: contact.contacted_by_user?.email || "Unknown",
+    method: contact.method,
+    created_at: contact.created_at,
+  }));
 
-    setContacts(data || []);
+  setContacts(formattedContacts || []);
   };
 
   const handleContact = async (method: string) => {
-    if (!currentUser || !item) return;
+    if (!currentUser) {
+      Alert.alert('Login Required', 'Please login before contacting the owner.');
+      return;
+    }
+  
+    if (!item) return;
 
     try {
       const { error } = await supabase.from('contact_attempts').insert({
@@ -207,7 +218,7 @@ export default function ItemScreen() {
             {contacts.map((contact) => (
               <View key={contact.id} style={styles.contactItem}>
                 <Text style={styles.contactEmail}>
-                  {contact.contacted_by_user.email}
+                  {contact.contacted_by}
                 </Text>
                 <Text style={styles.contactMethod}>
                   via {contact.method}
