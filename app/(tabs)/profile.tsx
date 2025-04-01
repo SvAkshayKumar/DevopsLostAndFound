@@ -12,6 +12,7 @@ import {
   Modal,
   Animated,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -32,10 +33,11 @@ import {
   Trash,
   HelpCircleIcon,
 } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
 import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
 import ResolvedItemDetailsModal from '../item/resolvedModal';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 const EMAIL_USER = 'hospital.carecloud@gmail.com'
 const EMAIL_PASSWORD = 'wkig gfnc ohcq ywso'
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [showResolvedModal, setShowResolvedModal] = useState(false);
   const [isAvatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -77,6 +80,7 @@ export default function ProfileScreen() {
 
   const fetchUserData = async () => {
     try {
+      setLoading(true); // Set loading to true when fetching
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
@@ -85,7 +89,6 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Fetch profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -94,7 +97,6 @@ export default function ProfileScreen() {
 
       if (profileError) {
         if (profileError.code === 'PGRST116') {
-          // Create profile if it doesn't exist
           const { error: createError } = await supabase
             .from('profiles')
             .insert({
@@ -105,7 +107,7 @@ export default function ProfileScreen() {
             });
 
           if (createError) throw createError;
-          await fetchUserData(); // Retry fetching
+          await fetchUserData();
           return;
         }
         throw profileError;
@@ -116,7 +118,6 @@ export default function ProfileScreen() {
         setEditedName(profileData.full_name || '');
       }
 
-      // Fetch user's items
       const { data: itemsData } = await supabase
         .from('items')
         .select('*')
@@ -129,6 +130,7 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
       setLoading(false);
+      setRefreshing(false); // Reset refreshing state when done
     }
   };
 
@@ -142,27 +144,51 @@ export default function ProfileScreen() {
     }
   };
 
-  const [isModalVisible, setisModalVisible] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const pickImage = async () => {
-    try {
-      // 1️⃣ Request Camera & Gallery Permissions
-      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-      const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-        Alert.alert('Permission Denied', 'You need to grant both Camera and Media Library permissions.');
-        return;
-      }
-
-      // 2️⃣ Show the image source picker modal
-      setisModalVisible(true); // Open the image picker modal
-    } catch (error) {
-      console.error('Error selecting image:', error);
-      Alert.alert('Error', 'Something went wrong while selecting an image.');
+  const openCamera = async () => {
+    setIsModalVisible(false);
+    
+    // Request camera permissions
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission Required", "You need to grant camera permission to take photos.");
+      return;
+    }
+  
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+  
+    if (!result.canceled) {
+      uploadAvatar(result.assets[0].uri);
     }
   };
   
+  const pickFromGallery = async () => {
+    setIsModalVisible(false);
+  
+    // Request media library permissions
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission Required", "You need to grant gallery access to select photos.");
+      return;
+    }
+  
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+  
+    if (!result.canceled) {
+      uploadAvatar(result.assets[0].uri);
+    }
+  };
 
   const uploadAvatar = async (uri: string) => {
     try {
@@ -372,6 +398,11 @@ export default function ProfileScreen() {
     );
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUserData(); // Trigger data refetch
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -396,7 +427,18 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#0891b2" // Color of the refresh indicator
+          title="Pull to refresh" // Optional: Text shown during refresh (iOS only)
+          titleColor="#64748b" // Optional: Text color (iOS only)
+        />
+      }
+    >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.avatarContainer}
@@ -730,10 +772,8 @@ export default function ProfileScreen() {
                 Update Profile Picture
               </Text>
 
-              <TouchableOpacity
-                style={styles.modalAvatarOption}
-                onPress={pickImage}
-              >
+              {/* Button to open modal */}
+              <TouchableOpacity style={styles.modalAvatarOption} onPress={() => setIsModalVisible(true)}>
                 <Edit2 size={18} color="#000" />
                 <Text style={styles.modalAvatarText}>Upload New Picture</Text>
               </TouchableOpacity>
@@ -743,50 +783,21 @@ export default function ProfileScreen() {
                 visible={isModalVisible}
                 transparent={true}
                 animationType="fade"
-                onRequestClose={() => setisModalVisible(false)} // Close modal on request
+                onRequestClose={() => setIsModalVisible(false)}
               >
                 <View style={styles.modalOverlay1}>
                   <View style={styles.modalContainer1}>
                     <Text style={styles.modalTitle1}>Select Image Source</Text>
 
-                    <TouchableOpacity
-                      style={styles.modalOption}
-                      onPress={async () => {
-                        setisModalVisible(false);
-                        const result = await ImagePicker.launchCameraAsync({
-                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                          allowsEditing: true,
-                          quality: 1,
-                        });
-                        if (!result.canceled && result.assets?.length) {
-                          await uploadAvatar(result.assets[0].uri);
-                        }
-                      }}
-                    >
+                    <TouchableOpacity style={styles.modalOption} onPress={openCamera}>
                       <Text style={styles.modalOptionText}>📸 Open Camera</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.modalOption}
-                      onPress={async () => {
-                        setisModalVisible(false);
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                          allowsEditing: true,
-                          quality: 1,
-                        });
-                        if (!result.canceled && result.assets?.length) {
-                          await uploadAvatar(result.assets[0].uri);
-                        }
-                      }}
-                    >
+                    <TouchableOpacity style={styles.modalOption} onPress={pickFromGallery}>
                       <Text style={styles.modalOptionText}>🖼️ Pick from Gallery</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.modalOption}
-                      onPress={() => setisModalVisible(false)} // Close modal
-                    >
+                    <TouchableOpacity style={styles.modalOption} onPress={() => setIsModalVisible(false)}>
                       <Text style={styles.modalOptionText}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
