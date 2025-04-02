@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
@@ -174,7 +173,6 @@ export default function AuthScreen() {
         return;
       }
 
-      // CHECKING PHONE NUMBER VALIDATION
       if (!validatePhoneNumber(phoneNumber)) {
         Alert.alert('Error', 'Please enter a valid 10-digit phone number');
         return;
@@ -185,7 +183,7 @@ export default function AuthScreen() {
         return;
       }
 
-      const allRequirementsMet = passwordRequirements.every((req) => req.met);
+      const allRequirementsMet = passwordRequirements.every(req => req.met);
       if (!allRequirementsMet) {
         Alert.alert('Error', 'Please meet all password requirements');
         return;
@@ -201,17 +199,26 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        // First create the user
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: fullName,
-              Phone: phoneNumber,
-            },
-          },
         });
+
         if (signUpError) throw signUpError;
+
+        // Then update the profile with additional information
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user!.id,
+            email: email,
+            full_name: fullName,
+            phone_number: phoneNumber,
+          });
+
+        if (profileError) throw profileError;
+
         Alert.alert('Success', 'Account created successfully. Please sign in.');
         setIsSignUp(false);
       } else {
