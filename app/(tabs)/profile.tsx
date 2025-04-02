@@ -208,7 +208,7 @@ export default function ProfileScreen() {
       }
       const blob = new Blob([new Uint8Array(byteArrays)], { type: "image/jpeg" });
   
-      const filename = `${user.id}/avatar.jpg`;
+      const filename = `${user.id}.jpg`;
   
       // Delete existing avatar if any
       await supabase.storage.from("avatar-images").remove([filename]);
@@ -263,7 +263,7 @@ export default function ProfileScreen() {
       // Convert image URI to Blob
       const response = await fetch(uri);
       const blob = await response.blob();
-      const filename = `${user.id}/avatar.jpg`;
+      const filename = `${user.id}.jpg`;
 
       // Delete existing avatar if any
       await supabase.storage
@@ -314,7 +314,7 @@ export default function ProfileScreen() {
     try {
       if (!user?.id) return;
 
-      const filename = `${user.id}/avatar.jpg`;
+      const filename = `${user.id}.jpg`;
       const { error: deleteError } = await supabase.storage
         .from('avatar-images')
         .remove([filename]);
@@ -416,6 +416,7 @@ export default function ProfileScreen() {
 
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [isSending, setIsSending] = useState(false); // Track sending state
 
   // Open WhatsApp chat
   const handleWhatsAppContact = () => {
@@ -427,25 +428,29 @@ export default function ProfileScreen() {
   };
 
   const handleSendEmail = async () => {
+    setIsSending(true);
     try {
+      const contactMessageFormated = `Email Id : ${user?.email}\n Hello I am ${user?.full_name}\nYou can view my profile on ${user?.avatar_url}\nI am discovered the bug in the app here goes the details about the bug,\n${contactMessage}`;
       const response = await fetch('https://sendfeedback.onrender.com/report-bug', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: contactMessage,  // Use the message you want to send
+          message: contactMessageFormated,
         }),
       });
   
       const data = await response.json();
       
       if (response.status === 200) {
+        setIsSending(false);
         Alert.alert('Thank you for reporting the bug!');
       } else {
         throw new Error(data.error || 'Failed to send the report');
       }
     } catch (error) {
+      setIsSending(false);
       console.error('Email sending failed:', error);
       Alert.alert('Failed to send the report. Please try again.');
     }
@@ -755,14 +760,17 @@ export default function ProfileScreen() {
                     multiline
                   />
                   <TouchableOpacity
-                    style={styles.button}
+                    style={[styles.button, isSending && styles.disabledButton]}
                     onPress={async () => {
                       await handleSendEmail();
-                      setIsBugModalOpen(false); // Close the modal after sending email
-                      setContactMessage(''); // Clear the contact message if necessary
+                      setIsBugModalOpen(false);
+                      setContactMessage('');
                     }}
+                    disabled={isSending}
                   >
-                    <Text style={styles.buttonText}>Send</Text>
+                    <Text style={styles.buttonText}>
+                      {isSending ? 'Sending... Please wait' : 'Send'}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.closeModalButton}
@@ -1414,5 +1422,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: '500',
+  },
+  disabledButton: {
+    backgroundColor: '#94a3b8',
   },
 });
