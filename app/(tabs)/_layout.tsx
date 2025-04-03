@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import {
   Search,
-  Chrome as Home,
+  Home,
   CirclePlus as PlusCircle,
   User,
   MessageCircle,
