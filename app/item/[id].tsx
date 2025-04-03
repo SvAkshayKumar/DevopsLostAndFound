@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle, CreditCard as Edit2, X, Camera, Save, ImagePlus } from 'lucide-react-native';
+import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle, CreditCard as Edit2, X, Camera, Save, ImagePlus, Trash2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 type Item = {
@@ -55,6 +55,7 @@ export default function ItemScreen() {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [isImagePickerVisible, setImagePickerVisible] = useState(false);
+  const [deleteModalVisible , setDeleteModalVisible ] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -313,6 +314,33 @@ export default function ItemScreen() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!item) return;
+  
+    try {
+      // Delete the item image from storage
+      if (item.image_url) {
+        const filename = item.image_url.split('/item-images/').pop();
+        if (filename) {
+          await supabase.storage.from('item-images').remove([filename]);
+        }
+      }
+  
+      // Delete the item from the database
+      const { error } = await supabase.from('items').delete().eq('id', item.id);
+      if (error) throw error;
+  
+      setDeleteModalVisible(false);
+      Alert.alert('Deleted', 'Item has been deleted successfully');
+  
+      // Navigate back to home
+      router.replace('/');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      Alert.alert('Error', 'Failed to delete the item');
+    }
+  };
+
   if (!item) {
     return (
       <View style={styles.container}>
@@ -367,14 +395,46 @@ export default function ItemScreen() {
         )}
 
         <View style={styles.details}>
-          <Text
-            style={[
-              styles.type,
-              { backgroundColor: item.type === 'lost' ? '#fee2e2' : '#dcfce7' },
-            ]}
-          >
-            {item.type.toUpperCase()}
-          </Text>
+          <View style={styles.typeContainer}>
+            <Text
+              style={[
+                styles.type,
+                { backgroundColor: item.type === 'lost' ? '#fee2e2' : '#dcfce7' },
+              ]}
+            >
+              {item.type.toUpperCase()}
+            </Text>
+
+            {isOwner && (
+              <TouchableOpacity onPress={() => setDeleteModalVisible(true)} style={styles.deleteButton}>
+                <Trash2 size={20} color="red" />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+
+          {/* Delete Confirmation Modal */}
+          <Modal visible={deleteModalVisible} transparent animationType="fade">
+            <View style={styles.modalBackground}>
+              <View style={styles.modalContainer}>
+                <Trash2 size={40} color="red" />
+                <Text style={styles.modalTitle}>Delete Item</Text>
+                <Text style={styles.modalText}>
+                  This action cannot be undone. Are you sure you want to delete this item?
+                </Text>
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => setDeleteModalVisible(false)}>
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.deleteConfirmButton} onPress={handleDelete}>
+                    <Text style={styles.buttonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
           {isEditing ? (
             <>
@@ -595,17 +655,17 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 16,
   },
-  type: {
-    alignSelf: 'flex-start',
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#e0f2fe',
-    color: '#000000',
-    marginBottom: 12,
-  },
+  // type: {
+  //   alignSelf: 'flex-start',
+  //   fontSize: 12,
+  //   fontWeight: '600',
+  //   paddingHorizontal: 10,
+  //   paddingVertical: 5,
+  //   borderRadius: 6,
+  //   backgroundColor: '#e0f2fe',
+  //   color: '#000000',
+  //   marginBottom: 12,
+  // },
   editInput: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -756,5 +816,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ef4444',
     fontWeight: '600',
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  type: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+    textTransform: 'uppercase',
+  },
+  deleteButton: {
+    marginLeft: 10,
+    padding: 8,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'red',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: 300,
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#ccc',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    backgroundColor: 'red',
+    padding: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
