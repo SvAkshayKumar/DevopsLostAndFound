@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,7 @@ export default function ChatsScreen() {
   const [contacts, setContacts] = useState<ContactPreview[]>([]);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const subscriptionRef = useRef<any>(null);
 
@@ -141,6 +143,14 @@ export default function ChatsScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (currentUser) {
+      await fetchContacts(currentUser);
+    }
+    setRefreshing(false);
+  };
+
   const formatTime = (dateString: string) => {
     const now = new Date();
     const contactDate = new Date(dateString);
@@ -183,6 +193,14 @@ export default function ChatsScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.user_id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#666"
+            colors={['#666']}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
