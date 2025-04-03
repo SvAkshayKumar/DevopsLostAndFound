@@ -9,10 +9,13 @@ import {
   Alert,
   Linking,
   Platform,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle, CreditCard as Edit2, X, Camera, Save, ImagePlus } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 type Item = {
   id: string;
@@ -46,6 +49,12 @@ export default function ItemScreen() {
   const [ownerProfile, setOwnerProfile] = useState<Profile | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const router = useRouter();
+
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [isImagePickerVisible, setImagePickerVisible] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -91,6 +100,8 @@ export default function ItemScreen() {
 
     setItem(itemData);
     setIsOwner(user?.id === itemData.user_id);
+    setEditedTitle(itemData.title);
+    setEditedDescription(itemData.description);
 
     if (itemData) {
       const { data: profileData } = await supabase
@@ -118,13 +129,13 @@ export default function ItemScreen() {
       return;
     }
     const formattedContacts = data.map(contact => ({
-    id: contact.id,
-    contacted_by: contact.contacted_by_user?.email || "Unknown",
-    method: contact.method,
-    created_at: contact.created_at,
-  }));
+      id: contact.id,
+      contacted_by: contact.contacted_by_user?.email || "Unknown",
+      method: contact.method,
+      created_at: contact.created_at,
+    }));
 
-  setContacts(formattedContacts || []);
+    setContacts(formattedContacts || []);
   };
 
   const handleContact = async (method: string) => {
@@ -171,6 +182,106 @@ export default function ItemScreen() {
     }
   };
 
+  const handleSaveChanges = async () => {
+    if (!item) return;
+
+    try {
+      const { error } = await supabase
+        .from('items')
+        .update({
+          title: editedTitle,
+          description: editedDescription,
+        })
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      setIsEditing(false);
+      fetchItem(); // Refresh item data
+      Alert.alert('Success', 'Item details updated successfully');
+    } catch (error) {
+      console.error('Error updating item:', error);
+      Alert.alert('Error', 'Failed to update item details');
+    }
+  };
+
+  const handleImagePick = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        await uploadImage(uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera permissions to take a photo');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 1,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        await uploadImage(uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const filename = `${Date.now()}.jpg`;
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('item-images')
+        .upload(filename, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl }, error: urlError } = supabase.storage
+        .from('item-images')
+        .getPublicUrl(filename);
+
+      if (urlError) throw urlError;
+
+      const { error: updateError } = await supabase
+        .from('items')
+        .update({ image_url: publicUrl })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      fetchItem(); // Refresh item data
+      setImagePickerVisible(false);
+      Alert.alert('Success', 'Image updated successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to upload image');
+    }
+  };
+
   if (!item) {
     return (
       <View style={styles.container}>
@@ -186,11 +297,42 @@ export default function ItemScreen() {
           <ArrowLeft size={24} color="#0891b2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{item.title}</Text>
+        {isOwner && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? (
+              <Save size={24} color="#0891b2" />
+            ) : (
+              <Edit2 size={24} color="#0891b2" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.content}>
-        {item.image_url && (
-          <Image source={{ uri: item.image_url }} style={styles.image} />
+        {item.image_url ? (
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: item.image_url }} style={styles.image} />
+            {isEditing && (
+              <TouchableOpacity
+                style={styles.changeImageButton}
+                onPress={() => setImagePickerVisible(true)}
+              >
+                <Camera size={24} color="#ffffff" />
+                <Text style={styles.changeImageText}>Change Image</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : isOwner && (
+          <TouchableOpacity
+            style={styles.addImageButton}
+            onPress={() => setImagePickerVisible(true)}
+          >
+            <ImagePlus size={32} color="#0891b2" />
+            <Text style={styles.addImageText}>Add Image</Text>
+          </TouchableOpacity>
         )}
 
         <View style={styles.details}>
@@ -203,13 +345,39 @@ export default function ItemScreen() {
             {item.type.toUpperCase()}
           </Text>
 
-          <Text style={styles.description}>{item.description}</Text>
-
-          <Text style={styles.meta}>
-            Posted by {item.user_email}
-            {'\n'}
-            {new Date(item.created_at).toLocaleString()}
-          </Text>
+          {isEditing ? (
+            <>
+              <TextInput
+                style={styles.editInput}
+                value={editedTitle}
+                onChangeText={setEditedTitle}
+                placeholder="Title"
+              />
+              <TextInput
+                style={[styles.editInput, styles.editTextArea]}
+                value={editedDescription}
+                onChangeText={setEditedDescription}
+                placeholder="Description"
+                multiline
+                numberOfLines={4}
+              />
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveChanges}
+              >
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.description}>{item.description}</Text>
+              <Text style={styles.meta}>
+                Posted by {item.user_email}
+                {'\n'}
+                {new Date(item.created_at).toLocaleString()}
+              </Text>
+            </>
+          )}
         </View>
 
         {isOwner ? (
@@ -270,16 +438,51 @@ export default function ItemScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Image Picker Modal */}
+      <Modal
+        visible={isImagePickerVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setImagePickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {item.image_url ? 'Change Image' : 'Add Image'}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleTakePhoto}
+            >
+              <Camera size={24} color="#0891b2" />
+              <Text style={styles.modalOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleImagePick}
+            >
+              <Edit2 size={24} color="#0891b2" />
+              <Text style={styles.modalOptionText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setImagePickerVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    marginTop : 45
+    marginTop: 45,
   },
   header: {
     flexDirection: 'row',
@@ -293,21 +496,62 @@ const styles = StyleSheet.create({
   backButton: {
     marginRight: 16,
   },
+  editButton: {
+    marginLeft: 'auto',
+    padding: 8,
+  },
   headerTitle: {
+    flex: 1,
     fontSize: 20,
     fontWeight: '700',
     color: '#1e293b',
-    // marginTop: ,
   },
   content: {
     flex: 1,
     padding: 16,
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: 16,
   },
   image: {
     width: '100%',
     height: 300,
     resizeMode: 'cover',
     borderRadius: 12,
+  },
+  addImageButton: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addImageText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: '#0891b2',
+    fontWeight: '500',
+  },
+  changeImageButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  changeImageText: {
+    color: '#ffffff',
+    marginLeft: 8,
+    fontSize: 16,
   },
   details: {
     padding: 16,
@@ -328,8 +572,20 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 6,
     backgroundColor: '#e0f2fe',
-    color: '#0284c7',
+    color: '#000000',
     marginBottom: 12,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  editTextArea: {
+    height: 120,
+    textAlignVertical: 'top',
   },
   description: {
     fontSize: 16,
@@ -340,6 +596,18 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 14,
     color: '#64748b',
+  },
+  saveButton: {
+    backgroundColor: '#0891b2',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   contactsList: {
     padding: 16,
@@ -364,11 +632,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
   },
   contactEmail: {
     fontSize: 16,
@@ -420,6 +683,47 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 16,
     color: '#0284c7',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  modalOptionText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  modalCloseButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: '#ef4444',
     fontWeight: '600',
   },
 });
