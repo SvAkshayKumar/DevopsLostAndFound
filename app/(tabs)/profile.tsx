@@ -10,13 +10,11 @@ import {
   ScrollView,
   Platform,
   Modal,
-  Animated,
   Linking,
   RefreshControl,
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import emailjs from '@emailjs/browser';
 import {
   LogOut,
   Camera,
@@ -37,10 +35,6 @@ import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
 import ResolvedItemDetailsModal from '../item/resolvedModal';
 import {launchCamera, launchImageLibrary, ImagePickerResponse} from 'react-native-image-picker';
-import * as ImagePicker from 'expo-image-picker';
-
-const EMAIL_USER = 'hospital.carecloud@gmail.com'
-const EMAIL_PASSWORD = 'wkig gfnc ohcq ywso'
 
 type UserProfile = {
   id: string;
