@@ -208,7 +208,7 @@ export default function ProfileScreen() {
       }
       const blob = new Blob([new Uint8Array(byteArrays)], { type: "image/jpeg" });
   
-      const filename = `${user.id}.jpg`;
+      const filename = `${user.id}/${Date.now()}.jpg`;
   
       // Delete existing avatar if any
       await supabase.storage.from("avatar-images").remove([filename]);
@@ -263,7 +263,7 @@ export default function ProfileScreen() {
       // Convert image URI to Blob
       const response = await fetch(uri);
       const blob = await response.blob();
-      const filename = `${user.id}.jpg`;
+      const filename = `${user.id}/${Date.now()}.jpg`;
 
       // Delete existing avatar if any
       await supabase.storage
@@ -313,24 +313,45 @@ export default function ProfileScreen() {
   const handleDeleteAvatar = async () => {
     try {
       if (!user?.id) return;
-
-      const filename = `${user.id}.jpg`;
+  
+      // Fetch the current avatar_url from the database
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+  
+      if (fetchError) throw fetchError;
+  
+      const avatarUrl = data?.avatar_url;
+      if (!avatarUrl) {
+        Alert.alert('Info', 'No profile picture to remove');
+        return;
+      }
+  
+      // Extract filename from public URL
+      const filename = avatarUrl.split('/').pop();
+  
+      if (!filename) {
+        Alert.alert('Error', 'Failed to determine avatar file name');
+        return;
+      }
+  
+      // Remove the file from Supabase storage
       const { error: deleteError } = await supabase.storage
         .from('avatar-images')
         .remove([filename]);
-
+  
       if (deleteError) throw deleteError;
-
+  
+      // Update the database to set avatar_url to null
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: null })
         .eq('id', user.id);
-
       if (updateError) throw updateError;
-
       // Fetch updated user data
       await fetchUserData();
-
       Alert.alert('Success', 'Profile picture removed');
       setAvatarModalVisible(false);
     } catch (error) {
@@ -338,6 +359,7 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to remove profile picture');
     }
   };
+  
 
   const handleUpdateProfile = async () => {
     if (!user) return;

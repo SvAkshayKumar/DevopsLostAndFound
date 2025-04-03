@@ -171,7 +171,7 @@ export default function ChatsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
-              {error ? 'Login to view Connections' : 'No contacts yet'}
+              {error ? 'Login to view Connections' : 'No connections yet'}
             </Text>
           </View>
         }
