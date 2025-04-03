@@ -250,29 +250,60 @@ export default function ItemScreen() {
 
   const uploadImage = async (uri: string) => {
     try {
+      if (!item || !currentUser) return;
+  
+      // Define the structured filename: userId/lost-or-found/timestamp.jpg
+      const filename = `${currentUser}/${item.type}/${Date.now()}.jpg`;
+  
+      // 1. Get existing image URL from the database
+      const { data: existingItem, error: fetchError } = await supabase
+        .from('items')
+        .select('image_url')
+        .eq('id', item.id)
+        .single();
+  
+      if (fetchError) throw fetchError;
+  
+      if (existingItem?.image_url) {
+        // Extract filename from the existing URL and delete it
+        const existingFilename = existingItem.image_url.split('/item-images/').pop();
+  
+        if (existingFilename) {
+          const { error: deleteError } = await supabase.storage
+            .from('item-images')
+            .remove([existingFilename]);
+  
+          if (deleteError) throw deleteError;
+        }
+      }
+  
+      // 2. Upload the new image
       const response = await fetch(uri);
       const blob = await response.blob();
-      const filename = `${Date.now()}.jpg`;
-
+  
       const { data, error: uploadError } = await supabase.storage
         .from('item-images')
         .upload(filename, blob);
-
+  
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl }, error: urlError } = supabase.storage
+  
+      // 3. Get the public URL of the new image
+      const { data: publicUrlData, error: urlError } = await supabase.storage
         .from('item-images')
         .getPublicUrl(filename);
-
+  
       if (urlError) throw urlError;
-
+  
+      const publicUrl = publicUrlData.publicUrl;
+  
+      // 4. Update the database with the new image URL
       const { error: updateError } = await supabase
         .from('items')
         .update({ image_url: publicUrl })
-        .eq('id', id);
-
+        .eq('id', item.id);
+  
       if (updateError) throw updateError;
-
+  
       fetchItem(); // Refresh item data
       setImagePickerVisible(false);
       Alert.alert('Success', 'Image updated successfully');
