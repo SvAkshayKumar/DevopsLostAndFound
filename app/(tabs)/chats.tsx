@@ -38,13 +38,14 @@ export default function ChatsScreen() {
         setCurrentUser(user.id);
         await fetchContacts(user.id);
 
+        // Subscribe to both incoming and outgoing contact attempts
         subscriptionRef.current = supabase
           .channel('contact_attempts')
           .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'contact_attempts',
-            filter: `posted_user_id=eq.${user.id}`,
+            filter: `or(posted_user_id.eq.${user.id},contacted_by.eq.${user.id})`,
           }, () => {
             fetchContacts(user.id);
           })
@@ -67,11 +68,11 @@ export default function ChatsScreen() {
     try {
       console.log('Fetching contacts for user:', userId);
 
-      // Fetch contact attempts
+      // Fetch contact attempts where user is either the poster or the contactor
       const { data: contactAttempts, error: contactError } = await supabase
         .from('contact_attempts')
-        .select('id, contacted_by, created_at, posted_user_id')
-        .eq('posted_user_id', userId)
+        .select('id, contacted_by, posted_user_id, created_at')
+        .or(`posted_user_id.eq.${userId},contacted_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (contactError) throw new Error('Contact attempts error: ' + contactError.message);
@@ -83,8 +84,12 @@ export default function ChatsScreen() {
 
       console.log('Contact attempts found:', contactAttempts.length);
 
-      // Get unique user IDs
-      const uniqueUserIds = [...new Set(contactAttempts.map(attempt => attempt.contacted_by))];
+      // Get unique user IDs (excluding current user)
+      const uniqueUserIds = [...new Set(contactAttempts.flatMap(attempt => [
+        attempt.contacted_by,
+        attempt.posted_user_id
+      ].filter(id => id !== userId)))];
+      
       console.log('Unique user IDs:', uniqueUserIds);
 
       // Fetch profiles
@@ -102,16 +107,26 @@ export default function ChatsScreen() {
 
       console.log('Profiles found:', profiles);
 
-      // Map contacts
+      // Map contacts with latest contact time from either direction
       const contactMap = new Map<string, ContactPreview>();
       profiles.forEach(profile => {
-        const lastContact = contactAttempts.find(attempt => attempt.contacted_by === profile.id);
+        const relevantAttempts = contactAttempts.filter(attempt => 
+          (attempt.contacted_by === profile.id && attempt.posted_user_id === userId) ||
+          (attempt.contacted_by === userId && attempt.posted_user_id === profile.id)
+        );
+        
+        const lastContactTime = relevantAttempts.length > 0
+          ? relevantAttempts.reduce((latest, current) => 
+              new Date(current.created_at) > new Date(latest.created_at) ? current : latest
+            ).created_at
+          : profile.created_at;
+
         contactMap.set(profile.id, {
           user_id: profile.id,
           full_name: profile.full_name || 'Anonymous User',
           email: profile.email || 'No email',
           avatar_url: profile.avatar_url,
-          last_contact_time: lastContact?.created_at || profile.created_at,
+          last_contact_time: lastContactTime,
         });
       });
 

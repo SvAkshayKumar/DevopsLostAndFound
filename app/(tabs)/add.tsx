@@ -13,7 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import { Camera, Upload,Edit2 } from 'lucide-react-native';
+import { Camera, Upload,Edit2, X } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 
 export default function AddItemScreen() {
@@ -147,6 +147,9 @@ export default function AddItemScreen() {
       });
   
       if (error) throw error;
+      setTitle('');
+      setDescription('');
+      setImage(null);
   
       await sendNotification(title);
       Alert.alert('Success', 'Item posted successfully');
@@ -270,7 +273,17 @@ export default function AddItemScreen() {
                 </View>
               </Modal>
     
-              {image && <Image source={{ uri: image }} style={styles.previewImage} />}
+              {image && (
+                <View style={styles.imageContainer}>
+                  <TouchableOpacity 
+                    style={styles.imageRemoveButton} 
+                    onPress={() => setImage(null)}
+                  >
+                    <X size={20} color="black" />
+                  </TouchableOpacity>
+                  <Image source={{ uri: image }} style={styles.previewImage} />                  
+                </View>
+              )}
     
               <TouchableOpacity
                 style={[buttonStyle, loading && styles.submitButtonDisabled]}

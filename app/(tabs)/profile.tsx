@@ -30,7 +30,6 @@ import {
   MessageCircle,
   Trash,
   HelpCircleIcon,
-  Trash2
 } from 'lucide-react-native';
 import FeedbackModal from '../item/feedbackModal';
 import PasswordModals from '../item/passwordModal';
@@ -67,7 +66,6 @@ export default function ProfileScreen() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [showResolvedModal, setShowResolvedModal] = useState(false);
   const [isAvatarModalVisible, setAvatarModalVisible] = useState(false);
-  const [deleteModalVisible , setDeleteModalVisible ] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -272,26 +270,6 @@ export default function ProfileScreen() {
       Alert.alert("Error", "Failed to upload profile picture. Please try again.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDelete = async (item_id : string) => {
-    if (!item_id) return;
-  
-    try {
-  
-      // Delete the item from the database
-      const { error } = await supabase.from('items').delete().eq('id', item_id);
-      if (error) throw error;
-  
-      setDeleteModalVisible(false);
-      Alert.alert('Deleted', 'Item has been deleted successfully');
-  
-      // Navigate back to home
-      router.replace('/');
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      Alert.alert('Error', 'Failed to delete the item');
     }
   };
 
@@ -695,15 +673,6 @@ export default function ProfileScreen() {
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.title}</Text>
               <View style={styles.itemMeta}>
-                {/* Show delete button only if the item is active */}
-                {item.status === 'active' && (
-                  <TouchableOpacity 
-                    onPress={() => setDeleteModalVisible(true)} 
-                    style={styles.deleteButton}
-                  >
-                    <Trash2 size={18} color="red" />
-                  </TouchableOpacity>
-                )}
                 <Text
                   style={[
                     styles.itemType,
@@ -747,29 +716,6 @@ export default function ProfileScreen() {
                 itemId={selectedResolvedItemId ?? ""}
               />
             </View>
-
-            {/* Delete Confirmation Modal */}
-            <Modal visible={deleteModalVisible} transparent animationType="fade">
-            <View style={styles.modalBackground2}>
-              <View style={styles.modalContainer2}>
-                <Trash2 size={40} color="red" />
-                <Text style={styles.modalTitle2}>Delete Item</Text>
-                <Text style={styles.modalText2}>
-                  This action cannot be undone. Are you sure you want to delete this item?
-                </Text>
-
-                <View style={styles.modalButtons2}>
-                  <TouchableOpacity style={styles.cancelButton2} onPress={() => setDeleteModalVisible(false)}>
-                    <Text style={styles.buttonText2}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.deleteConfirmButton2} onPress={handleDelete(item.id)}>
-                    <Text style={styles.buttonText2}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
 
             {item.status === 'active' && (
               <View>
@@ -1280,10 +1226,6 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     fontSize: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
     fontWeight: '500',
     color: '#1e293b',
     flex: 1,
@@ -1291,7 +1233,6 @@ const styles = StyleSheet.create({
   itemMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap:8
   },
   itemType: {
     fontSize: 12,
@@ -1546,77 +1487,5 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#94a3b8',
-  },
-  deleteButton: {
-    padding: 6,
-    borderRadius: 5,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'red',
-  },
-  detailsHeader2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between', // Moves delete button to the right
-    marginBottom: 10,
-  },
-  type: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-    textTransform: 'uppercase',
-  },
-  modalBackground2: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer2: {
-    width: 300,
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalTitle2: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginVertical: 10,
-    color: 'red',
-  },
-  modalText2: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
-  },
-  modalButtons2: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  cancelButton2: {
-    flex: 1,
-    backgroundColor: '#ccc',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginRight: 5,
-  },
-  deleteConfirmButton2: {
-    flex: 1,
-    backgroundColor: 'red',
-    padding: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  buttonText2: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
