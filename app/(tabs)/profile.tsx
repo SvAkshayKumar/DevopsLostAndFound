@@ -207,11 +207,38 @@ export default function ProfileScreen() {
         byteArrays.push(byteCharacters.charCodeAt(i));
       }
       const blob = new Blob([new Uint8Array(byteArrays)], { type: "image/jpeg" });
+
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
   
-      const filename = `${user.id}/${Date.now()}.jpg`;
+      if (fetchError) throw fetchError;
+  
+      const avatarUrl = data?.avatar_url;
+      if(avatarUrl){
+        let filename = user.id+"/"+avatarUrl.split('/').pop();
+  
+      if (!filename) {
+        Alert.alert('Error', 'Failed to determine avatar file name');
+        return;
+      }
+  
+      // Remove the file from Supabase storage
+      await supabase.storage
+        .from('avatar-images')
+        .remove([filename])
+        .catch(() => {});
+      }
+
+  
+      let filename = `${user.id}/${Date.now()}.jpg`;
   
       // Delete existing avatar if any
       await supabase.storage.from("avatar-images").remove([filename]);
+
+      filename = `${user.id}/${Date.now()}.jpg`;
   
       // Upload new avatar
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -263,13 +290,32 @@ export default function ProfileScreen() {
       // Convert image URI to Blob
       const response = await fetch(uri);
       const blob = await response.blob();
-      const filename = `${user.id}/${Date.now()}.jpg`;
 
-      // Delete existing avatar if any
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+  
+      if (fetchError) throw fetchError;
+  
+      const avatarUrl = data?.avatar_url;
+      if (avatarUrl) {
+        let filename = user.id+"/"+avatarUrl.split('/').pop();
+  
+      if (!filename) {
+        Alert.alert('Error', 'Failed to determine avatar file name');
+        return;
+      }
+  
+      // Remove the file from Supabase storage
       await supabase.storage
         .from('avatar-images')
         .remove([filename])
-        .catch(() => {}); // Ignore error if file doesn't exist
+        .catch(() => {});
+      }
+
+      const filename = `${user.id}/${Date.now()}.jpg`;
 
       // Upload new avatar
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -330,7 +376,7 @@ export default function ProfileScreen() {
       }
   
       // Extract filename from public URL
-      const filename = avatarUrl.split('/').pop();
+      const filename = user.id+"/"+avatarUrl.split('/').pop();
   
       if (!filename) {
         Alert.alert('Error', 'Failed to determine avatar file name');
