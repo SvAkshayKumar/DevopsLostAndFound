@@ -153,7 +153,7 @@ export default function AddItemScreen() {
   
       await sendNotification(title);
       Alert.alert('Success', 'Item posted successfully');
-      router.back();
+      router.replace('/');
     } catch (error) {
       console.error('Error adding item:', error);
       Alert.alert('Error', 'Failed to post item');

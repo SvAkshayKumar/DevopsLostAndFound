@@ -492,19 +492,22 @@ export default function ProfileScreen() {
   const handleSendEmail = async () => {
     setIsSending(true);
     try {
-      const contactMessageFormated = `Email Id : ${user?.email}\n Hello I am ${user?.full_name}\nYou can view my profile on ${user?.avatar_url}\nI am discovered the bug in the app here goes the details about the bug,\n${contactMessage}`;
-      const response = await fetch('https://sendfeedback.onrender.com/report-bug', {
+      const contactMessageFormatted = `Email Id : ${user?.email}\nHello I am ${user?.full_name}\nYou can view my profile on ${user?.avatar_url}\nI discovered a bug in the app. Here are the details:\n${contactMessage}`;
+  
+      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/feedback/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
+        }, 
         body: JSON.stringify({
-          message: contactMessageFormated,
+          name: user?.full_name || 'Anonymous',
+          email: user?.email,
+          message: contactMessageFormatted,
         }),
       });
   
       const data = await response.json();
-      
+  
       if (response.status === 200) {
         setIsSending(false);
         Alert.alert('Thank you for reporting the bug!');
@@ -516,7 +519,7 @@ export default function ProfileScreen() {
       console.error('Email sending failed:', error);
       Alert.alert('Failed to send the report. Please try again.');
     }
-  };
+  };  
 
   const handleEmailRedirect = () => {
     const mailtoUrl = 'mailto:adevadiga2005@gmail.com';

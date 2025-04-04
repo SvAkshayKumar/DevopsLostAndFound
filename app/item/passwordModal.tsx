@@ -84,54 +84,54 @@ const PasswordModals = ({
 
   const handleSendOtp = async () => {
     if (!user?.email) {
-        Alert.alert('Error', 'User email not found');
-        return;
-      }
+      Alert.alert('Error', 'User email not found');
+      return;
+    }
     try {
-      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/generate', {
+      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email : user.email,
+          email: user.email,
           type: 'numeric',
           organization: 'RVU Lost & Found',
           subject: 'OTP Verification',
         }),
       });
-
+  
       if (!response.ok) throw new Error('Failed to send OTP');
-
+  
       Alert.alert('Success', 'OTP has been sent to your email');
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to send OTP. Please try again.');
     }
   };
-
+  
   const handleVerifyOtp = async () => {
     try {
-      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/verify', {
+      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email : user.email,
+          email: user.email,
           otp,
         }),
       });
-
+  
       if (!response.ok) throw new Error('Invalid OTP');
-
+  
       setIsOtpVerified(true); // Update state on successful verification
       Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
       Alert.alert('Error', 'Invalid OTP. Please try again.');
     }
   };
-
+  
   // Verify Old Password
   const handleVerifyOldPassword = async () => {
     try {

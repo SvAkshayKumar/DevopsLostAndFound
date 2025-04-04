@@ -66,10 +66,10 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
       Alert.alert('Error', 'Please enter a valid RVU email address');
       return;
     }
-
+  
     setLoading(true);
     try {
-      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/generate', {
+      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,13 +81,13 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
           subject: 'OTP Verification',
         }),
       });
-
+  
       if (!response.ok) throw new Error('Failed to send OTP');
-
+  
       setResetOtpSent(true);
       setResetResendDisabled(true);
       Alert.alert('Success', 'OTP has been sent to your email');
-
+  
       const timer = setInterval(() => {
         setResetCountdown((prev) => {
           if (prev <= 1) {
@@ -104,16 +104,16 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
       setLoading(false);
     }
   };
-
+  
   const handleVerifyOTP = async () => {
     if (!resetOtp) {
       Alert.alert('Error', 'Please enter the OTP');
       return;
     }
-
+  
     setLoading(true);
     try {
-      const response = await fetch('https://otp-service-beta.vercel.app/api/otp/verify', {
+      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,9 +123,9 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
           otp: resetOtp,
         }),
       });
-
+  
       if (!response.ok) throw new Error('Invalid OTP');
-
+  
       setResetOtpVerified(true);
       Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
@@ -133,7 +133,7 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   const handleResetPassword = async () => {
     if (!resetOtpVerified) {
