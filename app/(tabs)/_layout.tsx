@@ -27,14 +27,14 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+            tabBarIcon: ({ color, size } : { color: string; size: number }) => <Home size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="search"
           options={{
             title: 'Search',
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
               <Search size={size} color={color} />
             ),
           }}
@@ -43,7 +43,7 @@ export default function TabLayout() {
           name="add"
           options={{
             title: 'Add Item',
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
               <PlusCircle size={size} color={color} />
             ),
           }}
@@ -52,7 +52,7 @@ export default function TabLayout() {
           name="chats"
           options={{
             title: 'Connections',
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
               <MessageCircle size={size} color={color} />
             ),
           }}
@@ -61,7 +61,7 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: 'Profile',
-            tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => <User size={size} color={color} />,
           }}
         />
       </Tabs>

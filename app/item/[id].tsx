@@ -12,13 +12,14 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle, CreditCard as Edit2, X, Camera, Save, ImagePlus, Trash2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import { Buffer } from 'buffer';
-global.Buffer = global.Buffer || Buffer;
 
 type Item = {
   id: string;
@@ -35,7 +36,6 @@ type Item = {
 type Contact = {
   id: string;
   contacted_by: string;
-  contacted_by_email: string;
   method: string;
   created_at: string;
 };
@@ -132,15 +132,18 @@ export default function ItemScreen() {
       console.error('Error fetching contacts:', error);
       return;
     }
+  
+    // Adjust the structure to match the 'Contact' type
     const formattedContacts = data.map(contact => ({
       id: contact.id,
-      contacted_by: contact.contacted_by_user?.email || "Unknown",
+      contacted_by: contact.contacted_by_user || "Unknown", // Change 'contacted_by_email' to 'contacted_by'
       method: contact.method,
       created_at: contact.created_at,
     }));
-
+  
     setContacts(formattedContacts || []);
   };
+  
 
   const handleContact = async (method: string) => {
     if (!currentUser) {
@@ -224,9 +227,12 @@ export default function ItemScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setImagePickerVisible(false); // ✅ Close modal immediately
+
         const uri = result.assets[0].uri;
         const uploadedUrl = await uploadImage(uri);
+        if (uploadedUrl) {
+          setImagePickerVisible(false); // Close modal after upload
+      }
         
       }
     } catch (error) {
@@ -250,9 +256,12 @@ export default function ItemScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setImagePickerVisible(false); // ✅ Close modal immediately
+       
         const uri = result.assets[0].uri;
         const uploadedUrl = await uploadImage(uri);
+        if (uploadedUrl) {
+          setImagePickerVisible(false); // Close modal after upload
+      }
         
       }
     } catch (error) {
@@ -291,7 +300,7 @@ export default function ItemScreen() {
       if (updateError) throw updateError;
 
       fetchItem(); // Refresh item data
-      setImagePickerVisible(false);
+      return publicUrl; 
       Alert.alert('Success', 'Image updated successfully');
     } catch (error) {
       console.error('Image upload error:', error);
@@ -328,57 +337,70 @@ export default function ItemScreen() {
   };
 
   const handleDeleteImage = async () => {
-  Alert.alert(
-    'Delete Image',
-    'Are you sure you want to delete this image?',
-    [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            // Extract file name from the image URL
-            const filename = item.image_url.split('/item-images/').pop();
-
-            const { error: storageError } = await supabase.storage
-              .from('item-images')
-              .remove([filename]);
-
-            if (storageError) {
-              console.error('Error deleting image from storage:', storageError);
-              Alert.alert('Error', 'Failed to delete the image.');
-              return;
-            }
-
-            // Update the image_url field in the database
-            const { error: dbError } = await supabase
-              .from('items')
-              .update({ image_url: null })
-              .eq('id', item.id);
-
-            if (dbError) {
-              console.error('Error updating database:', dbError);
-              Alert.alert('Error', 'Image deleted from storage but failed to update the database.');
-              return;
-            }
-
-            // Update local state
-            setItem(prev => ({ ...prev, image_url: null }));
-
-            Alert.alert('Deleted', 'Image deleted successfully.');
-          } catch (err) {
-            console.error('Delete error:', err);
-            Alert.alert('Error', 'Something went wrong.');
-          }
+    Alert.alert(
+      'Delete Image',
+      'Are you sure you want to delete this image?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
         },
-      },
-    ]
-  );
-};
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Check if 'item' is not null before accessing its properties
+              if (!item || !item.image_url) {
+                Alert.alert('Error', 'No image available to delete.');
+                return;
+              }
+  
+              // Extract file name from the image URL
+              const filename = item.image_url.split('/item-images/').pop();
+  
+              if (!filename) {
+                Alert.alert('Error', 'Failed to extract the image file name.');
+                return;
+              }
+  
+              // Remove image from storage
+              const { error: storageError } = await supabase.storage
+                .from('item-images')
+                .remove([filename]);
+  
+              if (storageError) {
+                console.error('Error deleting image from storage:', storageError);
+                Alert.alert('Error', 'Failed to delete the image from storage.');
+                return;
+              }
+  
+              // Update the image_url field in the database
+              const { error: dbError } = await supabase
+                .from('items')
+                .update({ image_url: null })
+                .eq('id', item.id);
+  
+              if (dbError) {
+                console.error('Error updating database:', dbError);
+                Alert.alert('Error', 'Image deleted from storage but failed to update the database.');
+                return;
+              }
+  
+              // Update local state with a valid check for 'item' and 'image_url'
+              setItem(prev => prev ? { ...prev, image_url: null } : null);
+  
+              Alert.alert('Deleted', 'Image deleted successfully.');
+            } catch (err) {
+              console.error('Delete error:', err);
+              Alert.alert('Error', 'Something went wrong.');
+            }
+          },
+        },
+      ]
+    );
+  };
+  
 
 
   if (!item) {

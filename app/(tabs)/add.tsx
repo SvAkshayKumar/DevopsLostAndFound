@@ -653,4 +653,45 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontWeight: '600',
   },
+  imageContainer: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb', // neutral border (Tailwind's gray-200)
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb', // soft background
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  uploadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6b7280', // gray-500
+    fontStyle: 'italic',
+  },
+  imageRemoveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 1,
+  },
+  typeButtonTextLost: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#dc2626', // Tailwind's red-600, good for indicating "lost"
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  typeButtonTextFound: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#16a34a', // Tailwind's green-600
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 });

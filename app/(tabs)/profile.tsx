@@ -61,6 +61,7 @@ export default function ProfileScreen() {
   const [editedName, setEditedName] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
   const router = useRouter();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -141,8 +142,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
-
   
   const handleTakePhoto = async () => {
     try {
@@ -151,23 +150,29 @@ export default function ProfileScreen() {
         Alert.alert('Permission needed', 'Please grant camera permissions to take a photo');
         return;
       }
-
+  
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 1,
       });
-
-      if (!result.canceled && result.assets[0]) {
+  
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         setAvatarModalVisible(false); // ✅ Close modal immediately
         const uri = result.assets[0].uri;
-        const uploadedUrl = await uploadImage(uri);
-        if (uploadedUrl) setImage(uploadedUrl);
+  
+        const uploadedUrl = await uploadImage(uri); // ✅ should return string | null
+        if (uploadedUrl) {
+          setImage(uploadedUrl);
+        } else {
+          Alert.alert('Upload failed', 'Image could not be uploaded');
+        }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
   };
+  
 
  const handleImagePick = async () => {
     try {
@@ -183,11 +188,13 @@ export default function ProfileScreen() {
         quality: 1,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setAvatarModalVisible(false); // ✅ Close modal immediately
+      if (!result.canceled && result.assets.length > 0) {
         const uri = result.assets[0].uri;
         const uploadedUrl = await uploadImage(uri);
-        if (uploadedUrl) setImage(uploadedUrl);
+        if (uploadedUrl) {
+          setImage(uploadedUrl);
+          setAvatarModalVisible(false); // Move this here to show modal only if upload succeeded
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -197,6 +204,9 @@ export default function ProfileScreen() {
 
   const uploadImage = async (uri: string) => {
   try {
+    if (!user) {
+      throw new Error('User is not logged in');
+    }
     const fileInfo = await FileSystem.getInfoAsync(uri);
     if (!fileInfo.exists) throw new Error('File does not exist');
 
@@ -250,6 +260,7 @@ export default function ProfileScreen() {
     await fetchUserData();
     Alert.alert('Success', 'Profile picture updated successfully');
     setAvatarModalVisible(false);
+    return publicUrl;
   } catch (error) {
     console.error('Image upload error:', error);
     Alert.alert('Upload Failed', 'There was an error uploading the image.');
@@ -1342,7 +1353,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#ddd', // Border color for the options
-    transition: 'background-color 0.3s', // Smooth transition effect when hovering
+    // transition: 'background-color 0.3s', // Smooth transition effect when hovering
   },
 
   // Text inside modal options
