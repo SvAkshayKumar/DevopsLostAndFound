@@ -11,6 +11,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  
 } from 'react-native';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
@@ -29,6 +30,7 @@ import {
   Save,
   ImagePlus,
   Trash2,
+  Flag
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -71,6 +73,20 @@ export default function ItemScreen() {
   const [editedDescription, setEditedDescription] = useState('');
   const [isImagePickerVisible, setImagePickerVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReason, setSelectedReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const abuseReasons = [
+    "Scam or fraud",
+    "Inappropriate content",
+    "Spam or misleading",
+    "Violates rules",
+    "Harassment",
+    "Other",
+  ];
+
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -135,6 +151,54 @@ export default function ItemScreen() {
         .single();
 
       setOwnerProfile(profileData);
+    }
+  };
+
+  const handleReportItem = () => {
+    setReportModalVisible(true);
+  };
+
+  const handleSubmitReport = async () => {
+    if (selectedReason === 'Other' && !reportDescription.trim()) {
+      Alert.alert("Please describe the issue for 'Other'");
+      return;
+    }
+  
+    setIsSubmitting(true);
+  
+    try {
+      if(item == null){
+        return Alert.alert("Error", "Item not found.");
+      }
+      const res = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/reportItem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportedUserEmail: currentUser,
+          itemPostedUserEmail: item.user_email,
+          itemPic: item.image_url || null,
+          itemTitle: item.title,
+          itemDescription: item.description,
+          itemPostedDate: item.created_at,
+          reportAbuseType: selectedReason,
+          reportDescription: reportDescription,
+        }),
+      });
+  
+      const responseJson = await res.json();
+  
+      if (!res.ok || responseJson.error) {
+        Alert.alert("Error", responseJson.error || "Something went wrong.");
+        setIsSubmitting(false);
+        return;
+      }
+  
+      Alert.alert("Reported", "The item has been reported and an email has been sent to the admin.");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Unable to send the report.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -509,15 +573,82 @@ export default function ItemScreen() {
               {item.type.toUpperCase()}
             </Text>
 
-            {isOwner && (
-              <TouchableOpacity
-                onPress={() => setDeleteModalVisible(true)}
-                style={styles.deleteButton}
-              >
+            {isOwner ? (
+              <TouchableOpacity onPress={() => setDeleteModalVisible(true)} style={styles.deleteButton}>
                 <Trash2 size={20} color="red" />
               </TouchableOpacity>
+            ):(
+              <TouchableOpacity style={styles.inlineReportButton} onPress={handleReportItem}>
+                <View style={styles.reportContent}>
+                  <Flag size={20} color="#ef4444" style={{ marginRight: 4 }} />
+                  <Text style={styles.reportButtonText}>Report</Text>
+                </View>
+              </TouchableOpacity>
+              
             )}
           </View>
+
+
+          <Modal
+            visible={reportModalVisible}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setReportModalVisible(false)}
+          >
+            <View style={styles.modalOverlay2}>
+              <View style={styles.modalContainer2}>
+                <Text style={styles.modalTitle2}>Report Abuse</Text>
+
+                {abuseReasons.map((reason) => (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[
+                      styles.reasonButton,
+                      selectedReason === reason && styles.reasonButtonSelected,
+                    ]}
+                    onPress={() => setSelectedReason(reason)}
+                  >
+                    <Text
+                      style={[
+                        styles.reasonButtonText,
+                        selectedReason === reason && styles.reasonButtonTextSelected,
+                      ]}
+                    >
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Always visible, but mandatory only when "Other" is selected */}
+                <TextInput
+                  style={styles.reportInput}
+                  placeholder={
+                    selectedReason === 'Other'
+                      ? 'Describe the issue (required)'
+                      : 'Describe the issue (optional)'
+                  }
+                  multiline
+                  value={reportDescription}
+                  onChangeText={setReportDescription}
+                />
+
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={handleSubmitReport}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.submitButtonText}>
+                    {isSubmitting ? "Submitting..." : "Submit Report"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
 
           {/* Delete Confirmation Modal */}
           <Modal visible={deleteModalVisible} transparent animationType="fade">
@@ -573,16 +704,16 @@ export default function ItemScreen() {
               </TouchableOpacity>
             </>
           ) : (
-            <>
+            <View style={styles.textContainer}>
               <Text style={styles.description}>{item.description}</Text>
               <Text style={styles.meta}>
                 Posted by {item.user_email}
                 {'\n'}
                 {new Date(item.created_at).toLocaleString()}
               </Text>
-            </>
-          )}
-        </View>
+            </View>
+        )}
+      </View>
 
         {isOwner ? (
           <View style={styles.contactsList}>
@@ -1005,4 +1136,111 @@ const styles = StyleSheet.create({
     backgroundColor: '#007bff',
     borderRadius: 8,
   },
+  reportButton: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  
+  reportButtonText: {
+    color: 'red',
+    fontWeight: 'bold',
+  },
+  
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  
+  textContainer: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  
+  inlineReportButton: {
+    padding: 6,
+    marginTop: 2,
+    backgroundColor: '#e3e6e8',
+    borderRadius: 6
+  },
+  reportContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  modalOverlay2: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  modalContainer2: {
+    backgroundColor: '#fff',
+    width: '90%',
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  
+  modalTitle2: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  
+  reasonButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    marginVertical: 5,
+  },
+  
+  reasonButtonSelected: {
+    backgroundColor: '#ef4444',
+    borderColor: '#ef4444',
+  },
+  
+  reasonButtonText: {
+    textAlign: 'center',
+  },
+  
+  reasonButtonTextSelected: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  
+  reportInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 10,
+    height: 80,
+    marginTop: 10,
+  },
+  
+  submitButton: {
+    backgroundColor: '#ef4444',
+    padding: 12,
+    borderRadius: 6,
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  
+  cancelText: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: '#777',
+  },
+  
 });
