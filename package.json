@@ -19,7 +19,7 @@
     "@supabase/supabase-js": "^2.39.3",
     "dotenv": "^16.4.7",
     "emailjs-com": "^3.2.0",
-    "expo": "^52.0.44",
+    "expo": "^52.0.46",
     "expo-blur": "^14.0.3",
     "expo-constants": "^17.0.5",
     "expo-device": "^7.0.3",
@@ -55,6 +55,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "@types/react-native": "^0.72.8",
     "babel-plugin-module-resolver": "^5.0.2",
     "metro-react-native-babel-preset": "^0.77.0",
     "typescript": "^5.3.3"
