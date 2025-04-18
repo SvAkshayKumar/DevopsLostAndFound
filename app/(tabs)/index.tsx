@@ -53,14 +53,18 @@ export default function HomeScreen() {
     // Subscribe to realtime updates
     const subscription = supabase
       .channel('items')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'items',
-        filter: 'status=eq.active'
-      }, () => {
-        fetchItems();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items',
+          filter: 'status=eq.active',
+        },
+        () => {
+          fetchItems();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -105,7 +109,8 @@ export default function HomeScreen() {
           {item.description}
         </Text>
         <Text style={styles.itemMeta}>
-          Posted by {item.user_email} • {new Date(item.created_at).toLocaleDateString()}
+          Posted by {item.user_email} •{' '}
+          {new Date(item.created_at).toLocaleDateString()}
         </Text>
       </View>
     </TouchableOpacity>

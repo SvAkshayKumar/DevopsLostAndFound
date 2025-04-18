@@ -17,7 +17,19 @@ global.Buffer = global.Buffer || Buffer;
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Mail, MessageSquare, MessageCircle, CreditCard as Edit2, X, Camera, Save, ImagePlus, Trash2 } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  MessageSquare,
+  MessageCircle,
+  CreditCard as Edit2,
+  X,
+  Camera,
+  Save,
+  ImagePlus,
+  Trash2,
+} from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 
@@ -58,11 +70,13 @@ export default function ItemScreen() {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [isImagePickerVisible, setImagePickerVisible] = useState(false);
-  const [deleteModalVisible , setDeleteModalVisible ] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         setCurrentUser(user.id);
       }
@@ -74,14 +88,18 @@ export default function ItemScreen() {
     // Subscribe to contacts changes
     const subscription = supabase
       .channel('contact_attempts')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'contact_attempts',
-        filter: `item_id=eq.${id}`,
-      }, () => {
-        fetchContacts();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contact_attempts',
+          filter: `item_id=eq.${id}`,
+        },
+        () => {
+          fetchContacts();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -90,7 +108,9 @@ export default function ItemScreen() {
   }, [id]);
 
   const fetchItem = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const { data: itemData, error } = await supabase
       .from('items')
       .select('*')
@@ -113,7 +133,7 @@ export default function ItemScreen() {
         .select('phone_number')
         .eq('id', itemData.user_id)
         .single();
-      
+
       setOwnerProfile(profileData);
     }
   };
@@ -121,36 +141,40 @@ export default function ItemScreen() {
   const fetchContacts = async () => {
     const { data, error } = await supabase
       .from('contact_attempts')
-      .select(`
+      .select(
+        `
         *,
         contacted_by_user:contacted_by(email)
-      `)
+      `,
+      )
       .eq('item_id', id)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching contacts:', error);
       return;
     }
-  
+
     // Adjust the structure to match the 'Contact' type
-    const formattedContacts = data.map(contact => ({
+    const formattedContacts = data.map((contact) => ({
       id: contact.id,
-      contacted_by: contact.contacted_by_user || "Unknown", // Change 'contacted_by_email' to 'contacted_by'
+      contacted_by: contact.contacted_by_user || 'Unknown', // Change 'contacted_by_email' to 'contacted_by'
       method: contact.method,
       created_at: contact.created_at,
     }));
-  
+
     setContacts(formattedContacts || []);
   };
-  
 
   const handleContact = async (method: string) => {
     if (!currentUser) {
-      Alert.alert('Login Required', 'Please login before contacting the owner.');
+      Alert.alert(
+        'Login Required',
+        'Please login before contacting the owner.',
+      );
       return;
     }
-  
+
     if (!item) return;
 
     try {
@@ -163,7 +187,7 @@ export default function ItemScreen() {
 
       if (error) throw error;
 
-      switch (method) { 
+      switch (method) {
         case 'phone':
           if (ownerProfile?.phone_number) {
             Linking.openURL(`tel:${ownerProfile.phone_number}`);
@@ -174,7 +198,9 @@ export default function ItemScreen() {
           break;
         case 'sms':
           if (ownerProfile?.phone_number) {
-            Linking.openURL(`sms:${ownerProfile.phone_number}?body=Hello, I am contacting you regarding...`);
+            Linking.openURL(
+              `sms:${ownerProfile.phone_number}?body=Hello, I am contacting you regarding...`,
+            );
           }
           break;
         case 'whatsapp':
@@ -214,9 +240,13 @@ export default function ItemScreen() {
 
   const handleImagePick = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant media library permissions');
+        Alert.alert(
+          'Permission needed',
+          'Please grant media library permissions',
+        );
         return;
       }
 
@@ -227,18 +257,15 @@ export default function ItemScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-
         const uri = result.assets[0].uri;
         const uploadedUrl = await uploadImage(uri);
         if (uploadedUrl) {
           setImagePickerVisible(false); // Close modal after upload
-      }
-        
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
-      
     }
   };
 
@@ -246,7 +273,10 @@ export default function ItemScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera permissions to take a photo');
+        Alert.alert(
+          'Permission needed',
+          'Please grant camera permissions to take a photo',
+        );
         return;
       }
 
@@ -256,13 +286,11 @@ export default function ItemScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-       
         const uri = result.assets[0].uri;
         const uploadedUrl = await uploadImage(uri);
         if (uploadedUrl) {
           setImagePickerVisible(false); // Close modal after upload
-      }
-        
+        }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -300,7 +328,7 @@ export default function ItemScreen() {
       if (updateError) throw updateError;
 
       fetchItem(); // Refresh item data
-      return publicUrl; 
+      return publicUrl;
       Alert.alert('Success', 'Image updated successfully');
     } catch (error) {
       console.error('Image upload error:', error);
@@ -311,7 +339,7 @@ export default function ItemScreen() {
 
   const handleDelete = async () => {
     if (!item) return;
-  
+
     try {
       // Delete the item image from storage
       if (item.image_url) {
@@ -320,14 +348,14 @@ export default function ItemScreen() {
           await supabase.storage.from('item-images').remove([filename]);
         }
       }
-  
+
       // Delete the item from the database
       const { error } = await supabase.from('items').delete().eq('id', item.id);
       if (error) throw error;
-  
+
       setDeleteModalVisible(false);
       Alert.alert('Deleted', 'Item has been deleted successfully');
-  
+
       // Navigate back to home
       router.replace('/');
     } catch (error) {
@@ -337,71 +365,68 @@ export default function ItemScreen() {
   };
 
   const handleDeleteImage = async () => {
-    Alert.alert(
-      'Delete Image',
-      'Are you sure you want to delete this image?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Check if 'item' is not null before accessing its properties
-              if (!item || !item.image_url) {
-                Alert.alert('Error', 'No image available to delete.');
-                return;
-              }
-  
-              // Extract file name from the image URL
-              const filename = item.image_url.split('/item-images/').pop();
-  
-              if (!filename) {
-                Alert.alert('Error', 'Failed to extract the image file name.');
-                return;
-              }
-  
-              // Remove image from storage
-              const { error: storageError } = await supabase.storage
-                .from('item-images')
-                .remove([filename]);
-  
-              if (storageError) {
-                console.error('Error deleting image from storage:', storageError);
-                Alert.alert('Error', 'Failed to delete the image from storage.');
-                return;
-              }
-  
-              // Update the image_url field in the database
-              const { error: dbError } = await supabase
-                .from('items')
-                .update({ image_url: null })
-                .eq('id', item.id);
-  
-              if (dbError) {
-                console.error('Error updating database:', dbError);
-                Alert.alert('Error', 'Image deleted from storage but failed to update the database.');
-                return;
-              }
-  
-              // Update local state with a valid check for 'item' and 'image_url'
-              setItem(prev => prev ? { ...prev, image_url: null } : null);
-  
-              Alert.alert('Deleted', 'Image deleted successfully.');
-            } catch (err) {
-              console.error('Delete error:', err);
-              Alert.alert('Error', 'Something went wrong.');
+    Alert.alert('Delete Image', 'Are you sure you want to delete this image?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // Check if 'item' is not null before accessing its properties
+            if (!item || !item.image_url) {
+              Alert.alert('Error', 'No image available to delete.');
+              return;
             }
-          },
-        },
-      ]
-    );
-  };
-  
 
+            // Extract file name from the image URL
+            const filename = item.image_url.split('/item-images/').pop();
+
+            if (!filename) {
+              Alert.alert('Error', 'Failed to extract the image file name.');
+              return;
+            }
+
+            // Remove image from storage
+            const { error: storageError } = await supabase.storage
+              .from('item-images')
+              .remove([filename]);
+
+            if (storageError) {
+              console.error('Error deleting image from storage:', storageError);
+              Alert.alert('Error', 'Failed to delete the image from storage.');
+              return;
+            }
+
+            // Update the image_url field in the database
+            const { error: dbError } = await supabase
+              .from('items')
+              .update({ image_url: null })
+              .eq('id', item.id);
+
+            if (dbError) {
+              console.error('Error updating database:', dbError);
+              Alert.alert(
+                'Error',
+                'Image deleted from storage but failed to update the database.',
+              );
+              return;
+            }
+
+            // Update local state with a valid check for 'item' and 'image_url'
+            setItem((prev) => (prev ? { ...prev, image_url: null } : null));
+
+            Alert.alert('Deleted', 'Image deleted successfully.');
+          } catch (err) {
+            console.error('Delete error:', err);
+            Alert.alert('Error', 'Something went wrong.');
+          }
+        },
+      },
+    ]);
+  };
 
   if (!item) {
     return (
@@ -414,7 +439,10 @@ export default function ItemScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color="#0891b2" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{item.title}</Text>
@@ -433,37 +461,39 @@ export default function ItemScreen() {
       </View>
 
       <ScrollView style={styles.content}>
-       {item.image_url ? (
-  <View style={styles.imageContainer}>
-    <Image source={{ uri: item.image_url }} style={styles.image} />
-    {isEditing && (
-      <View style={styles.imageButtonRow}>
-        <TouchableOpacity
-          style={[styles.changeImageButton, { marginRight: 10 }]}
-          onPress={() => setImagePickerVisible(true)}
-        >
-          <Camera size={24} color="#ffffff" />
-          <Text style={styles.changeImageText}>Change Image</Text>
-        </TouchableOpacity>
+        {item.image_url ? (
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: item.image_url }} style={styles.image} />
+            {isEditing && (
+              <View style={styles.imageButtonRow}>
+                <TouchableOpacity
+                  style={[styles.changeImageButton, { marginRight: 10 }]}
+                  onPress={() => setImagePickerVisible(true)}
+                >
+                  <Camera size={24} color="#ffffff" />
+                  <Text style={styles.changeImageText}>Change Image</Text>
+                </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.changeImageButton}
-          onPress={() => handleDeleteImage()}
-        >
-          <Camera size={24} color="#ffffff" />
-          <Text style={styles.changeImageText}>Delete Image</Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  </View>
-) : isOwner && (
-          <TouchableOpacity
-            style={styles.addImageButton}
-            onPress={() => setImagePickerVisible(true)}
-          >
-            <ImagePlus size={32} color="#0891b2" />
-            <Text style={styles.addImageText}>Add Image</Text>
-          </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changeImageButton}
+                  onPress={() => handleDeleteImage()}
+                >
+                  <Camera size={24} color="#ffffff" />
+                  <Text style={styles.changeImageText}>Delete Image</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ) : (
+          isOwner && (
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={() => setImagePickerVisible(true)}
+            >
+              <ImagePlus size={32} color="#0891b2" />
+              <Text style={styles.addImageText}>Add Image</Text>
+            </TouchableOpacity>
+          )
         )}
 
         <View style={styles.details}>
@@ -471,19 +501,23 @@ export default function ItemScreen() {
             <Text
               style={[
                 styles.type,
-                { backgroundColor: item.type === 'lost' ? '#fee2e2' : '#dcfce7' },
+                {
+                  backgroundColor: item.type === 'lost' ? '#fee2e2' : '#dcfce7',
+                },
               ]}
             >
               {item.type.toUpperCase()}
             </Text>
 
             {isOwner && (
-              <TouchableOpacity onPress={() => setDeleteModalVisible(true)} style={styles.deleteButton}>
+              <TouchableOpacity
+                onPress={() => setDeleteModalVisible(true)}
+                style={styles.deleteButton}
+              >
                 <Trash2 size={20} color="red" />
               </TouchableOpacity>
             )}
           </View>
-          
 
           {/* Delete Confirmation Modal */}
           <Modal visible={deleteModalVisible} transparent animationType="fade">
@@ -492,15 +526,22 @@ export default function ItemScreen() {
                 <Trash2 size={40} color="red" />
                 <Text style={styles.modalTitle}>Delete Item</Text>
                 <Text style={styles.modalText}>
-                  This action cannot be undone. Are you sure you want to delete this item?
+                  This action cannot be undone. Are you sure you want to delete
+                  this item?
                 </Text>
 
                 <View style={styles.modalButtons}>
-                  <TouchableOpacity style={styles.cancelButton} onPress={() => setDeleteModalVisible(false)}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setDeleteModalVisible(false)}
+                  >
                     <Text style={styles.buttonText}>Cancel</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.deleteConfirmButton} onPress={handleDelete}>
+                  <TouchableOpacity
+                    style={styles.deleteConfirmButton}
+                    onPress={handleDelete}
+                  >
                     <Text style={styles.buttonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
@@ -548,12 +589,8 @@ export default function ItemScreen() {
             <Text style={styles.contactsTitle}>Reach Out Attempts</Text>
             {contacts.map((contact) => (
               <View key={contact.id} style={styles.contactItem}>
-                <Text style={styles.contactEmail}>
-                  {contact.contacted_by}
-                </Text>
-                <Text style={styles.contactMethod}>
-                  via {contact.method}
-                </Text>
+                <Text style={styles.contactEmail}>{contact.contacted_by}</Text>
+                <Text style={styles.contactMethod}>via {contact.method}</Text>
                 <Text style={styles.contactTime}>
                   {new Date(contact.created_at).toLocaleString()}
                 </Text>
@@ -953,20 +990,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   imageButtonRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  gap: 10, // Optional, only if using React Native 0.71+
-  marginTop: 10,
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10, // Optional, only if using React Native 0.71+
+    marginTop: 10,
+  },
 
-changeImageButton: {
-  flex: 1,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 10,
-  backgroundColor: '#007bff',
-  borderRadius: 8,
-},
-
+  changeImageButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    backgroundColor: '#007bff',
+    borderRadius: 8,
+  },
 });

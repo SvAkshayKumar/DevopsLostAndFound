@@ -51,15 +51,16 @@ export default function SearchScreen() {
     }
 
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    let query = supabase
-      .from('items')
-      .select('*')
-      .eq('status', 'active');
+    let query = supabase.from('items').select('*').eq('status', 'active');
 
     if (searchQuery.trim()) {
-      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      query = query.or(
+        `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`,
+      );
     }
 
     if (filters.type !== 'all') {
@@ -111,7 +112,8 @@ export default function SearchScreen() {
           {item.description}
         </Text>
         <Text style={styles.itemMeta}>
-          Posted by {item.user_email} • {new Date(item.created_at).toLocaleDateString()}
+          Posted by {item.user_email} •{' '}
+          {new Date(item.created_at).toLocaleDateString()}
         </Text>
       </View>
     </TouchableOpacity>
@@ -133,12 +135,18 @@ export default function SearchScreen() {
             onPress={() => setShowFilters(!showFilters)}
             style={[
               styles.filterButton,
-              (filters.type !== 'all' || filters.onlyMine) && styles.filterActive,
+              (filters.type !== 'all' || filters.onlyMine) &&
+                styles.filterActive,
             ]}
           >
-            <Filter size={20} color={
-              (filters.type !== 'all' || filters.onlyMine) ? '#0891b2' : '#64748b'
-            } />
+            <Filter
+              size={20}
+              color={
+                filters.type !== 'all' || filters.onlyMine
+                  ? '#0891b2'
+                  : '#64748b'
+              }
+            />
           </TouchableOpacity>
         </View>
 
@@ -154,10 +162,14 @@ export default function SearchScreen() {
                   ]}
                   onPress={() => setFilters({ ...filters, type: 'all' })}
                 >
-                  <Text style={[
-                    styles.filterOptionText,
-                    filters.type === 'all' && styles.filterOptionTextActive,
-                  ]}>All</Text>
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      filters.type === 'all' && styles.filterOptionTextActive,
+                    ]}
+                  >
+                    All
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -166,10 +178,14 @@ export default function SearchScreen() {
                   ]}
                   onPress={() => setFilters({ ...filters, type: 'lost' })}
                 >
-                  <Text style={[
-                    styles.filterOptionText,
-                    filters.type === 'lost' && styles.filterOptionTextActive,
-                  ]}>Lost</Text>
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      filters.type === 'lost' && styles.filterOptionTextActive,
+                    ]}
+                  >
+                    Lost
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -178,10 +194,14 @@ export default function SearchScreen() {
                   ]}
                   onPress={() => setFilters({ ...filters, type: 'found' })}
                 >
-                  <Text style={[
-                    styles.filterOptionText,
-                    filters.type === 'found' && styles.filterOptionTextActive,
-                  ]}>Found</Text>
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      filters.type === 'found' && styles.filterOptionTextActive,
+                    ]}
+                  >
+                    Found
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -192,12 +212,18 @@ export default function SearchScreen() {
                   styles.myItemsFilter,
                   filters.onlyMine && styles.myItemsFilterActive,
                 ]}
-                onPress={() => setFilters({ ...filters, onlyMine: !filters.onlyMine })}
+                onPress={() =>
+                  setFilters({ ...filters, onlyMine: !filters.onlyMine })
+                }
               >
-                <Text style={[
-                  styles.myItemsFilterText,
-                  filters.onlyMine && styles.myItemsFilterTextActive,
-                ]}>Show Only My Items</Text>
+                <Text
+                  style={[
+                    styles.myItemsFilterText,
+                    filters.onlyMine && styles.myItemsFilterTextActive,
+                  ]}
+                >
+                  Show Only My Items
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

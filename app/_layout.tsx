@@ -19,9 +19,11 @@ export default function RootLayout() {
 
     initSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      },
+    );
 
     return () => {
       listener.subscription.unsubscribe();

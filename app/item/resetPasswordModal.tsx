@@ -20,7 +20,11 @@ type PasswordRequirement = {
 const passwordRequirements: PasswordRequirement[] = [
   { label: '8-16 characters', regex: /^.{8,16}$/, met: false },
   { label: 'At least one number', regex: /\d/, met: false },
-  { label: 'At least one special character', regex: /[!@#$%^&*(),.?":{}|<>]/, met: false },
+  {
+    label: 'At least one special character',
+    regex: /[!@#$%^&*(),.?":{}|<>]/,
+    met: false,
+  },
 ];
 
 type ResetPasswordModalProps = {
@@ -28,7 +32,10 @@ type ResetPasswordModalProps = {
   onClose: () => void;
 };
 
-export default function ResetPasswordModal({ visible, onClose }: ResetPasswordModalProps) {
+export default function ResetPasswordModal({
+  visible,
+  onClose,
+}: ResetPasswordModalProps) {
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
   const [resetOtpSent, setResetOtpSent] = useState(false);
@@ -66,28 +73,31 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
       Alert.alert('Error', 'Please enter a valid RVU email address');
       return;
     }
-  
+
     setLoading(true);
     try {
-      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: resetEmail,
+            type: 'numeric',
+            organization: 'RVU Lost & Found',
+            subject: 'OTP Verification',
+          }),
         },
-        body: JSON.stringify({
-          email: resetEmail,
-          type: 'numeric',
-          organization: 'RVU Lost & Found',
-          subject: 'OTP Verification',
-        }),
-      });
-  
+      );
+
       if (!response.ok) throw new Error('Failed to send OTP');
-  
+
       setResetOtpSent(true);
       setResetResendDisabled(true);
       Alert.alert('Success', 'OTP has been sent to your email');
-  
+
       const timer = setInterval(() => {
         setResetCountdown((prev) => {
           if (prev <= 1) {
@@ -104,28 +114,31 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
       setLoading(false);
     }
   };
-  
+
   const handleVerifyOTP = async () => {
     if (!resetOtp) {
       Alert.alert('Error', 'Please enter the OTP');
       return;
     }
-  
+
     setLoading(true);
     try {
-      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: resetEmail,
+            otp: resetOtp,
+          }),
         },
-        body: JSON.stringify({
-          email: resetEmail,
-          otp: resetOtp,
-        }),
-      });
-  
+      );
+
       if (!response.ok) throw new Error('Invalid OTP');
-  
+
       setResetOtpVerified(true);
       Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
@@ -133,7 +146,7 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   const handleResetPassword = async () => {
     if (!resetOtpVerified) {
@@ -151,7 +164,9 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
       return;
     }
 
-    const allRequirementsMet = passwordRequirements.every((req) => req.regex.test(newPassword));
+    const allRequirementsMet = passwordRequirements.every((req) =>
+      req.regex.test(newPassword),
+    );
     if (!allRequirementsMet) {
       Alert.alert('Error', 'Please meet all password requirements');
       return;
@@ -170,13 +185,13 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
 
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         userResponse.id,
-        { password: newPassword }
+        { password: newPassword },
       );
 
       if (updateError) throw updateError;
 
       Alert.alert('Success', 'Password updated successfully', [
-        { text: 'OK', onPress: handleClose }
+        { text: 'OK', onPress: handleClose },
       ]);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to update password. Please try again.');
@@ -196,10 +211,7 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Reset Password</Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              style={styles.closeButton}
-            >
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <X size={24} color="#64748b" />
             </TouchableOpacity>
           </View>
@@ -233,7 +245,10 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
                   </View>
                   <View style={styles.otpActions}>
                     <TouchableOpacity
-                      style={[styles.otpButton, loading && styles.buttonDisabled]}
+                      style={[
+                        styles.otpButton,
+                        loading && styles.buttonDisabled,
+                      ]}
                       onPress={handleVerifyOTP}
                       disabled={loading}
                     >
@@ -242,7 +257,10 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.otpButton, resetResendDisabled && styles.buttonDisabled]}
+                      style={[
+                        styles.otpButton,
+                        resetResendDisabled && styles.buttonDisabled,
+                      ]}
                       onPress={handleGenerateOTP}
                       disabled={resetResendDisabled}
                     >
@@ -301,19 +319,29 @@ export default function ResetPasswordModal({ visible, onClose }: ResetPasswordMo
               </View>
 
               <View style={styles.requirements}>
-                <Text style={styles.requirementsTitle}>Password Requirements:</Text>
+                <Text style={styles.requirementsTitle}>
+                  Password Requirements:
+                </Text>
                 {passwordRequirements.map((req, index) => (
                   <View key={index} style={styles.requirementItem}>
                     <View
                       style={[
                         styles.requirementDot,
-                        { backgroundColor: req.regex.test(newPassword) ? '#10b981' : '#94a3b8' },
+                        {
+                          backgroundColor: req.regex.test(newPassword)
+                            ? '#10b981'
+                            : '#94a3b8',
+                        },
                       ]}
                     />
                     <Text
                       style={[
                         styles.requirementText,
-                        { color: req.regex.test(newPassword) ? '#10b981' : '#94a3b8' },
+                        {
+                          color: req.regex.test(newPassword)
+                            ? '#10b981'
+                            : '#94a3b8',
+                        },
                       ]}
                     >
                       {req.label}

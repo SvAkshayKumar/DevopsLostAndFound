@@ -33,9 +33,13 @@ export default function AddItemScreen() {
 
   const handleImagePick = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant media library permissions');
+        Alert.alert(
+          'Permission needed',
+          'Please grant media library permissions',
+        );
         return;
       }
 
@@ -64,7 +68,10 @@ export default function AddItemScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera permissions to take a photo');
+        Alert.alert(
+          'Permission needed',
+          'Please grant camera permissions to take a photo',
+        );
         return;
       }
 
@@ -124,54 +131,55 @@ export default function AddItemScreen() {
         console.log('Must use physical device for Push Notifications');
         return;
       }
-  
+
       // Request permission if not already granted
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-  
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-  
+
       if (finalStatus !== 'granted') {
         console.log('Failed to get push token for push notification!');
         return;
       }
-  
+
       // Get current device's Expo Push Token
       const { data: token } = await Notifications.getExpoPushTokenAsync();
       const expoToken = token;
-  
+
       console.log('Current device Expo token:', expoToken);
-  
+
       // Save the current device's token to Supabase
       const { error: tokenError } = await supabase
         .from('profiles')
         .update({ push_token: expoToken })
         .eq('id', userId);
-  
+
       if (tokenError) {
         console.error('Error saving token to Supabase:', tokenError);
       } else {
         console.log('Expo token saved to Supabase');
       }
-  
+
       // Fetch all users with valid tokens
       const { data: users, error: fetchError } = await supabase
         .from('profiles')
         .select('id, push_token')
         .not('push_token', 'is', null);
-  
+
       if (fetchError) {
         console.error('Error fetching tokens from Supabase:', fetchError);
         return;
       }
-  
+
       // Send notifications to all valid tokens
       for (const user of users) {
         const targetToken = user.push_token;
-  
+
         const message = {
           to: targetToken,
           sound: 'default',
@@ -179,7 +187,7 @@ export default function AddItemScreen() {
           body: `A new item titled "${itemTitle}" has been posted.`,
           data: { itemTitle },
         };
-  
+
         const response = await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: {
@@ -189,9 +197,9 @@ export default function AddItemScreen() {
           },
           body: JSON.stringify(message),
         });
-  
+
         const resData = await response.json();
-  
+
         // If the token is no longer valid, remove it
         if (
           resData.data?.status === 'error' &&
@@ -210,7 +218,7 @@ export default function AddItemScreen() {
       console.error('Error sending notifications:', error);
     }
   };
-  
+
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) {
       Alert.alert('Error', 'Please fill in all required fields');
@@ -238,12 +246,12 @@ export default function AddItemScreen() {
       });
 
       if (error) throw error;
-      
+
       setTitle('');
       setDescription('');
       setImage(null);
 
-      await sendNotification(title,user.id);
+      await sendNotification(title, user.id);
       Alert.alert('Success', 'Item posted successfully');
       router.replace('/');
     } catch (error) {
@@ -254,16 +262,17 @@ export default function AddItemScreen() {
     }
   };
 
-  const containerStyle = type === 'lost' 
-    ? styles.containerLost 
-    : styles.containerFound;
+  const containerStyle =
+    type === 'lost' ? styles.containerLost : styles.containerFound;
 
-  const buttonStyle = type === 'lost'
-    ? styles.submitButtonLost
-    : styles.submitButtonFound;
+  const buttonStyle =
+    type === 'lost' ? styles.submitButtonLost : styles.submitButtonFound;
 
   return (
-    <ScrollView style={[styles.container, containerStyle]} scrollEnabled={!imageUploading && !loading}>
+    <ScrollView
+      style={[styles.container, containerStyle]}
+      scrollEnabled={!imageUploading && !loading}
+    >
       <View style={styles.content}>
         <View style={styles.typeSelector}>
           <TouchableOpacity
@@ -274,10 +283,12 @@ export default function AddItemScreen() {
             onPress={() => setType('lost')}
             disabled={imageUploading || loading} // ✅ Disable during upload
           >
-            <Text style={[
-              styles.typeButtonText,
-              type === 'lost' && styles.typeButtonTextLost,
-            ]}>
+            <Text
+              style={[
+                styles.typeButtonText,
+                type === 'lost' && styles.typeButtonTextLost,
+              ]}
+            >
               Lost Item
             </Text>
           </TouchableOpacity>
@@ -289,16 +300,23 @@ export default function AddItemScreen() {
             onPress={() => setType('found')}
             disabled={imageUploading || loading} // ✅ Disable during upload
           >
-            <Text style={[
-              styles.typeButtonText,
-              type === 'found' && styles.typeButtonTextFound,
-            ]}>
+            <Text
+              style={[
+                styles.typeButtonText,
+                type === 'found' && styles.typeButtonTextFound,
+              ]}
+            >
               Found Item
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.label, type === 'lost' ? styles.labelLost : styles.labelFound]}>
+        <Text
+          style={[
+            styles.label,
+            type === 'lost' ? styles.labelLost : styles.labelFound,
+          ]}
+        >
           Title
         </Text>
         <TextInput
@@ -310,7 +328,12 @@ export default function AddItemScreen() {
           editable={!imageUploading && !loading} // ✅ Disable during upload
         />
 
-        <Text style={[styles.label, type === 'lost' ? styles.labelLost : styles.labelFound]}>
+        <Text
+          style={[
+            styles.label,
+            type === 'lost' ? styles.labelLost : styles.labelFound,
+          ]}
+        >
           Description
         </Text>
         <TextInput
@@ -324,16 +347,20 @@ export default function AddItemScreen() {
           editable={!imageUploading && !loading} // ✅ Disable during upload
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.imageButton}
           onPress={() => setImagePickerVisible(true)}
           disabled={imageUploading || loading} // ✅ Disable during upload
         >
           <Camera size={24} color={type === 'lost' ? '#dc2626' : '#16a34a'} />
-          <Text style={[
-            styles.imageButtonText,
-            type === 'lost' ? styles.imageButtonTextLost : styles.imageButtonTextFound
-          ]}>
+          <Text
+            style={[
+              styles.imageButtonText,
+              type === 'lost'
+                ? styles.imageButtonTextLost
+                : styles.imageButtonTextFound,
+            ]}
+          >
             Add Photo
           </Text>
         </TouchableOpacity>
@@ -371,24 +398,30 @@ export default function AddItemScreen() {
 
         {imageUploading ? (
           <View style={styles.imageContainer}>
-            <ActivityIndicator size="large" color={type === 'lost' ? '#dc2626' : '#16a34a'} />
+            <ActivityIndicator
+              size="large"
+              color={type === 'lost' ? '#dc2626' : '#16a34a'}
+            />
             <Text style={styles.uploadingText}>Uploading...</Text>
           </View>
         ) : image ? (
           <View style={styles.imageContainer}>
-            <TouchableOpacity 
-              style={styles.imageRemoveButton} 
+            <TouchableOpacity
+              style={styles.imageRemoveButton}
               onPress={() => setImage(null)}
               disabled={loading} // ✅ Disable during submit
             >
               <X size={20} color="black" />
             </TouchableOpacity>
-            <Image source={{ uri: image }} style={styles.previewImage} />                  
+            <Image source={{ uri: image }} style={styles.previewImage} />
           </View>
         ) : null}
 
         <TouchableOpacity
-          style={[buttonStyle, (loading || imageUploading) && styles.submitButtonDisabled]}
+          style={[
+            buttonStyle,
+            (loading || imageUploading) && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={loading || imageUploading} // ✅ Disable during upload or submit
         >
@@ -401,7 +434,6 @@ export default function AddItemScreen() {
     </ScrollView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

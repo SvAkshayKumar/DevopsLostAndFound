@@ -11,7 +11,6 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 export default {
   expo: {
     name: "Lost&Found",
-    slug: "Lost-and-Found",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

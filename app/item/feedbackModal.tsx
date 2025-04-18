@@ -39,7 +39,7 @@ export default function FeedbackModal({
       console.error('Error: itemId is missing');
       return;
     }
-  
+
     const feedbackData = {
       item_id: itemId,
       helper_name: helperName,
@@ -47,23 +47,25 @@ export default function FeedbackModal({
       experience,
       created_at: new Date().toISOString(),
     };
-  
+
     try {
-      const { data, error } = await supabase.from('feedback').insert([feedbackData]);
-  
+      const { data, error } = await supabase
+        .from('feedback')
+        .insert([feedbackData]);
+
       if (error) {
         throw error;
       }
-  
+
       console.log('Feedback saved:', data);
-  
+
       // Transform data to match the expected structure before calling onSubmit
       onSubmit({
-        helperName,  // Match expected format
+        helperName, // Match expected format
         rating,
         experience,
       });
-  
+
       // Reset form
       setHelperName('');
       setRating(0);
@@ -75,7 +77,6 @@ export default function FeedbackModal({
       Alert.alert('Error', 'Problem with the server, please try again!');
     }
   };
-  
 
   return (
     <Modal
@@ -91,7 +92,9 @@ export default function FeedbackModal({
           </TouchableOpacity>
 
           <Text style={styles.modalTitle}>
-            {type === 'lost' ? 'Who helped you find it?' : 'Share your experience'}
+            {type === 'lost'
+              ? 'Who helped you find it?'
+              : 'Share your experience'}
           </Text>
 
           <TextInput
@@ -145,7 +148,6 @@ export default function FeedbackModal({
     </Modal>
   );
 }
-
 
 const styles = StyleSheet.create({
   modalOverlay: {

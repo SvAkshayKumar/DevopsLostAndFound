@@ -1,6 +1,6 @@
-import { useLocalSearchParams } from "expo-router";
-import { View, Text, StyleSheet, Button } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, Button } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 const ChatScreen = () => {
   const { chatId } = useLocalSearchParams(); // Capture chatId
@@ -23,27 +23,27 @@ const ChatScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
     paddingHorizontal: 20,
   },
   title: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 10,
   },
   message: {
     fontSize: 16,
-    color: "#666",
-    textAlign: "center",
+    color: '#666',
+    textAlign: 'center',
     marginBottom: 10,
   },
   chatId: {
     fontSize: 14,
-    color: "#888",
-    fontStyle: "italic",
+    color: '#888',
+    fontStyle: 'italic',
     marginBottom: 20,
   },
 });

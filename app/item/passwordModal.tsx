@@ -12,7 +12,6 @@
 // import { supabase } from '@/lib/supabase';
 // import PropTypes from 'prop-types';
 
-
 // type PasswordModalsProps = {
 //   isPasswordModalOpen: boolean;
 //   setIsPasswordModalOpen: (open: boolean) => void;
@@ -112,16 +111,16 @@
 //           subject: 'OTP Verification',
 //         }),
 //       });
-  
+
 //       if (!response.ok) throw new Error('Failed to send OTP');
-  
+
 //       Alert.alert('Success', 'OTP has been sent to your email');
 //     } catch (error) {
 //       console.error(error);
 //       Alert.alert('Error', 'Failed to send OTP. Please try again.');
 //     }
 //   };
-  
+
 //   const handleVerifyOtp = async () => {
 //     try {
 //       const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify', {
@@ -134,16 +133,16 @@
 //           otp,
 //         }),
 //       });
-  
+
 //       if (!response.ok) throw new Error('Invalid OTP');
-  
+
 //       setIsOtpVerified(true); // Update state on successful verification
 //       Alert.alert('Success', 'Email verified successfully');
 //     } catch (error) {
 //       Alert.alert('Error', 'Invalid OTP. Please try again.');
 //     }
 //   };
-  
+
 //   // Verify Old Password
 //   const handleVerifyOldPassword = async () => {
 //     try {
@@ -365,7 +364,7 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
   setIsPasswordModalOpen,
   isResetModalOpen,
   setIsResetModalOpen,
-  user = {},  // Provide a default empty object if user is undefined
+  user = {}, // Provide a default empty object if user is undefined
   styles,
 }) => {
   const [otp, setOtp] = useState('');
@@ -436,18 +435,21 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
       return;
     }
     try {
-      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/generate',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: user.email,
+            type: 'numeric',
+            organization: 'RVU Lost & Found',
+            subject: 'OTP Verification',
+          }),
         },
-        body: JSON.stringify({
-          email: user.email,
-          type: 'numeric',
-          organization: 'RVU Lost & Found',
-          subject: 'OTP Verification',
-        }),
-      });
+      );
 
       if (!response.ok) throw new Error('Failed to send OTP');
 
@@ -460,16 +462,19 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
 
   const handleVerifyOtp = async () => {
     try {
-      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/otp/verify',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: user.email,
+            otp,
+          }),
         },
-        body: JSON.stringify({
-          email: user.email,
-          otp,
-        }),
-      });
+      );
 
       if (!response.ok) throw new Error('Invalid OTP');
 

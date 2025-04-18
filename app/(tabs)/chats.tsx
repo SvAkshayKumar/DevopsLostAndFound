@@ -30,12 +30,15 @@ export default function ChatsScreen() {
 
   useEffect(() => {
     const setupContacts = async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) {
         setError('Failed to get authenticated user: ' + authError.message);
         return;
       }
-      
+
       if (user) {
         setCurrentUser(user.id);
         await fetchContacts(user.id);
@@ -43,14 +46,18 @@ export default function ChatsScreen() {
         // Subscribe to both incoming and outgoing contact attempts
         subscriptionRef.current = supabase
           .channel('contact_attempts')
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'contact_attempts',
-            filter: `or(posted_user_id.eq.${user.id},contacted_by.eq.${user.id})`,
-          }, () => {
-            fetchContacts(user.id);
-          })
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'contact_attempts',
+              filter: `or(posted_user_id.eq.${user.id},contacted_by.eq.${user.id})`,
+            },
+            () => {
+              fetchContacts(user.id);
+            },
+          )
           .subscribe((status: string) => {
             console.log('Subscription status:', status);
           });
@@ -77,7 +84,8 @@ export default function ChatsScreen() {
         .or(`posted_user_id.eq.${userId},contacted_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
-      if (contactError) throw new Error('Contact attempts error: ' + contactError.message);
+      if (contactError)
+        throw new Error('Contact attempts error: ' + contactError.message);
       if (!contactAttempts?.length) {
         console.log('No contact attempts found');
         setContacts([]);
@@ -87,11 +95,16 @@ export default function ChatsScreen() {
       console.log('Contact attempts found:', contactAttempts.length);
 
       // Get unique user IDs (excluding current user)
-      const uniqueUserIds = [...new Set(contactAttempts.flatMap(attempt => [
-        attempt.contacted_by,
-        attempt.posted_user_id
-      ].filter(id => id !== userId)))];
-      
+      const uniqueUserIds = [
+        ...new Set(
+          contactAttempts.flatMap((attempt) =>
+            [attempt.contacted_by, attempt.posted_user_id].filter(
+              (id) => id !== userId,
+            ),
+          ),
+        ),
+      ];
+
       console.log('Unique user IDs:', uniqueUserIds);
 
       // Fetch profiles
@@ -100,7 +113,8 @@ export default function ChatsScreen() {
         .select('id, email, full_name, avatar_url, created_at')
         .in('id', uniqueUserIds);
 
-      if (profileError) throw new Error('Profiles error: ' + profileError.message);
+      if (profileError)
+        throw new Error('Profiles error: ' + profileError.message);
       if (!profiles?.length) {
         console.log('No profiles found for users');
         setContacts([]);
@@ -111,17 +125,23 @@ export default function ChatsScreen() {
 
       // Map contacts with latest contact time from either direction
       const contactMap = new Map<string, ContactPreview>();
-      profiles.forEach(profile => {
-        const relevantAttempts = contactAttempts.filter(attempt => 
-          (attempt.contacted_by === profile.id && attempt.posted_user_id === userId) ||
-          (attempt.contacted_by === userId && attempt.posted_user_id === profile.id)
+      profiles.forEach((profile) => {
+        const relevantAttempts = contactAttempts.filter(
+          (attempt) =>
+            (attempt.contacted_by === profile.id &&
+              attempt.posted_user_id === userId) ||
+            (attempt.contacted_by === userId &&
+              attempt.posted_user_id === profile.id),
         );
-        
-        const lastContactTime = relevantAttempts.length > 0
-          ? relevantAttempts.reduce((latest, current) => 
-              new Date(current.created_at) > new Date(latest.created_at) ? current : latest
-            ).created_at
-          : profile.created_at;
+
+        const lastContactTime =
+          relevantAttempts.length > 0
+            ? relevantAttempts.reduce((latest, current) =>
+                new Date(current.created_at) > new Date(latest.created_at)
+                  ? current
+                  : latest,
+              ).created_at
+            : profile.created_at;
 
         contactMap.set(profile.id, {
           user_id: profile.id,
@@ -133,7 +153,9 @@ export default function ChatsScreen() {
       });
 
       const sortedContacts = Array.from(contactMap.values()).sort(
-        (a, b) => new Date(b.last_contact_time).getTime() - new Date(a.last_contact_time).getTime()
+        (a, b) =>
+          new Date(b.last_contact_time).getTime() -
+          new Date(a.last_contact_time).getTime(),
       );
       setContacts(sortedContacts);
       console.log('Final contacts:', sortedContacts);
@@ -154,12 +176,23 @@ export default function ChatsScreen() {
   const formatTime = (dateString: string) => {
     const now = new Date();
     const contactDate = new Date(dateString);
-    const diffDays = Math.floor((now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(
+      (now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
 
-    if (diffDays === 0) return contactDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    if (diffDays === 0)
+      return contactDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+      });
     if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return contactDate.toLocaleDateString('en-US', { weekday: 'long' });
-    return contactDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diffDays < 7)
+      return contactDate.toLocaleDateString('en-US', { weekday: 'long' });
+    return contactDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
   const renderItem = ({ item }: { item: ContactPreview }) => (
@@ -180,8 +213,12 @@ export default function ChatsScreen() {
       </View>
       <View style={styles.contactInfo}>
         <Text style={styles.fullName}>{item.full_name}</Text>
-        <Text style={styles.email} numberOfLines={1}>{item.email}</Text>
-        <Text style={styles.timestamp}>{formatTime(item.last_contact_time)}</Text>
+        <Text style={styles.email} numberOfLines={1}>
+          {item.email}
+        </Text>
+        <Text style={styles.timestamp}>
+          {formatTime(item.last_contact_time)}
+        </Text>
       </View>
     </TouchableOpacity>
   );

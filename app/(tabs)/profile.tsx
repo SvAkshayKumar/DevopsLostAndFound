@@ -142,24 +142,26 @@ export default function ProfileScreen() {
     }
   };
 
-  
   const handleTakePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera permissions to take a photo');
+        Alert.alert(
+          'Permission needed',
+          'Please grant camera permissions to take a photo',
+        );
         return;
       }
-  
+
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         quality: 1,
       });
-  
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setAvatarModalVisible(false); // ✅ Close modal immediately
         const uri = result.assets[0].uri;
-  
+
         const uploadedUrl = await uploadImage(uri); // ✅ should return string | null
         if (uploadedUrl) {
           setImage(uploadedUrl);
@@ -172,13 +174,16 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to take photo');
     }
   };
-  
 
- const handleImagePick = async () => {
+  const handleImagePick = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant media library permissions');
+        Alert.alert(
+          'Permission needed',
+          'Please grant media library permissions',
+        );
         return;
       }
 
@@ -203,107 +208,106 @@ export default function ProfileScreen() {
   };
 
   const uploadImage = async (uri: string) => {
-  try {
-    if (!user) {
-      throw new Error('User is not logged in');
-    }
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    if (!fileInfo.exists) throw new Error('File does not exist');
-
-    const fileBase64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const contentType = 'image/jpeg';
-    const filename = `${user.id}/${Date.now()}.jpg`;
-
-    // Remove old avatar if it exists
-    const { data: userData, error: fetchError } = await supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    const oldAvatarUrl = userData?.avatar_url;
-    if (oldAvatarUrl) {
-      const oldFile = oldAvatarUrl.split('/avatar-images/').pop();
-      if (oldFile) {
-        await supabase.storage.from('avatar-images').remove([`${oldFile}`]);
+    try {
+      if (!user) {
+        throw new Error('User is not logged in');
       }
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) throw new Error('File does not exist');
+
+      const fileBase64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const contentType = 'image/jpeg';
+      const filename = `${user.id}/${Date.now()}.jpg`;
+
+      // Remove old avatar if it exists
+      const { data: userData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const oldAvatarUrl = userData?.avatar_url;
+      if (oldAvatarUrl) {
+        const oldFile = oldAvatarUrl.split('/avatar-images/').pop();
+        if (oldFile) {
+          await supabase.storage.from('avatar-images').remove([`${oldFile}`]);
+        }
+      }
+
+      // Upload new avatar
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatar-images')
+        .upload(filename, Buffer.from(fileBase64, 'base64'), { contentType });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('avatar-images').getPublicUrl(filename);
+
+      if (!publicUrl) throw new Error('Failed to get public URL');
+
+      // Update profile in DB
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Refresh user data
+      await fetchUserData();
+      Alert.alert('Success', 'Profile picture updated successfully');
+      setAvatarModalVisible(false);
+      return publicUrl;
+    } catch (error) {
+      console.error('Image upload error:', error);
+      Alert.alert('Upload Failed', 'There was an error uploading the image.');
+    } finally {
+      setLoading(false);
     }
-
-    // Upload new avatar
-    const { data, error: uploadError } = await supabase.storage
-      .from('avatar-images')
-      .upload(filename, Buffer.from(fileBase64, 'base64'), { contentType });
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('avatar-images').getPublicUrl(filename);
-
-    if (!publicUrl) throw new Error('Failed to get public URL');
-
-    // Update profile in DB
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ avatar_url: publicUrl })
-      .eq('id', user.id);
-
-    if (updateError) throw updateError;
-
-    // Refresh user data
-    await fetchUserData();
-    Alert.alert('Success', 'Profile picture updated successfully');
-    setAvatarModalVisible(false);
-    return publicUrl;
-  } catch (error) {
-    console.error('Image upload error:', error);
-    Alert.alert('Upload Failed', 'There was an error uploading the image.');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleDeleteAvatar = async () => {
     try {
       if (!user?.id) return;
-  
+
       // Fetch the current avatar_url from the database
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('avatar_url')
         .eq('id', user.id)
         .single();
-  
+
       if (fetchError) throw fetchError;
-  
+
       const avatarUrl = data?.avatar_url;
       if (!avatarUrl) {
         Alert.alert('Info', 'No profile picture to remove');
         return;
       }
-  
+
       // Extract filename from public URL
-      const filename = user.id+"/"+avatarUrl.split('/').pop();
-  
+      const filename = user.id + '/' + avatarUrl.split('/').pop();
+
       if (!filename) {
         Alert.alert('Error', 'Failed to determine avatar file name');
         return;
       }
-  
+
       // Remove the file from Supabase storage
       const { error: deleteError } = await supabase.storage
         .from('avatar-images')
         .remove([filename]);
-  
+
       if (deleteError) throw deleteError;
-  
+
       // Update the database to set avatar_url to null
       const { error: updateError } = await supabase
         .from('profiles')
@@ -319,7 +323,6 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to remove profile picture');
     }
   };
-  
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -334,7 +337,7 @@ export default function ProfileScreen() {
 
       setIsEditing(false);
       await fetchUserData();
-      Alert.alert('Success','Successfully updated User Name');
+      Alert.alert('Success', 'Successfully updated User Name');
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile');
@@ -358,13 +361,15 @@ export default function ProfileScreen() {
   };
 
   const [showResolvedModalResult, setShowResolvedModalResult] = useState(false);
-  const [selectedResolvedItemId, setSelectedResolvedItemId] = useState<string | null>(null);
-  
+  const [selectedResolvedItemId, setSelectedResolvedItemId] = useState<
+    string | null
+  >(null);
+
   const handleOpenResolvedModal = (itemId: string) => {
     setSelectedResolvedItemId(itemId);
     setShowResolvedModalResult(true);
   };
-  
+
   const handleCloseResolvedModalResult = () => {
     setShowResolvedModalResult(false);
     setSelectedResolvedItemId(null);
@@ -394,7 +399,7 @@ export default function ProfileScreen() {
   const handleCloseResolvedModal = () => {
     setShowResolvedModal(false);
     setSelectedItemId(null);
-  }
+  };
 
   const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
@@ -413,21 +418,24 @@ export default function ProfileScreen() {
     setIsSending(true);
     try {
       const contactMessageFormatted = `Email Id : ${user?.email}\nHello I am ${user?.full_name}\nYou can view my profile on ${user?.avatar_url}\nI discovered a bug in the app. Here are the details:\n${contactMessage}`;
-  
-      const response = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/feedback/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+
+      const response = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/feedback/send',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: user?.full_name || 'Anonymous',
+            email: user?.email,
+            message: contactMessageFormatted,
+          }),
         },
-        body: JSON.stringify({
-          name: user?.full_name || 'Anonymous',
-          email: user?.email,
-          message: contactMessageFormatted,
-        }),
-      });
-  
+      );
+
       const data = await response.json();
-  
+
       if (response.status === 200) {
         setIsSending(false);
         Alert.alert('Thank you for reporting the bug!');
@@ -439,13 +447,13 @@ export default function ProfileScreen() {
       console.error('Email sending failed:', error);
       Alert.alert('Failed to send the report. Please try again.');
     }
-  };  
+  };
 
   const handleEmailRedirect = () => {
     const mailtoUrl = 'mailto:adevadiga2005@gmail.com';
 
     Linking.openURL(mailtoUrl).catch((err) =>
-      console.error('Error opening mail app', err)
+      console.error('Error opening mail app', err),
     );
   };
 
@@ -474,7 +482,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
     );
-    
   }
 
   return (
@@ -561,7 +568,7 @@ export default function ProfileScreen() {
           <Text style={styles.statNumber}>
             {
               items.filter(
-                (item) => item.type === 'lost' && item.status === 'active'
+                (item) => item.type === 'lost' && item.status === 'active',
               ).length
             }
           </Text>
@@ -571,7 +578,7 @@ export default function ProfileScreen() {
           <Text style={styles.statNumber}>
             {
               items.filter(
-                (item) => item.type === 'found' && item.status === 'active'
+                (item) => item.type === 'found' && item.status === 'active',
               ).length
             }
           </Text>
@@ -609,7 +616,9 @@ export default function ProfileScreen() {
                 </Text>
 
                 {item.status === 'resolved' ? (
-                  <TouchableOpacity onPress={() => handleOpenResolvedModal(item.id)}>
+                  <TouchableOpacity
+                    onPress={() => handleOpenResolvedModal(item.id)}
+                  >
                     <Text
                       style={[
                         styles.itemStatus,
@@ -636,7 +645,7 @@ export default function ProfileScreen() {
               <ResolvedItemDetailsModal
                 isVisible={showResolvedModalResult}
                 onClose={handleCloseResolvedModalResult}
-                itemId={selectedResolvedItemId ?? ""}
+                itemId={selectedResolvedItemId ?? ''}
               />
             </View>
 
@@ -814,37 +823,40 @@ export default function ProfileScreen() {
         onRequestClose={() => setAvatarModalVisible(false)}
       >
         <View style={styles.modalAvatarOverlay}>
-            <View style={styles.modalAvatarContainer}>
-              <TouchableOpacity
-                style={styles.closeAvatarButton}
-                onPress={() => setAvatarModalVisible(false)}
-              >
-                <Text style={styles.closeAvatarText}>✕</Text>
-              </TouchableOpacity>
+          <View style={styles.modalAvatarContainer}>
+            <TouchableOpacity
+              style={styles.closeAvatarButton}
+              onPress={() => setAvatarModalVisible(false)}
+            >
+              <Text style={styles.closeAvatarText}>✕</Text>
+            </TouchableOpacity>
 
-              <Text style={styles.modalAvatarTitle}>
-                Update Profile Picture
+            <Text style={styles.modalAvatarTitle}>Update Profile Picture</Text>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleTakePhoto}
+            >
+              <Text style={styles.modalOptionText}>📸 Open Camera</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleImagePick}
+            >
+              <Text style={styles.modalOptionText}>🖼️ Pick from Gallery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalAvatarOption}
+              onPress={handleDeleteAvatar}
+            >
+              <Trash size={18} color="red" />
+              <Text style={[styles.modalAvatarText, { color: 'red' }]}>
+                Remove Current Picture
               </Text>
-
-              <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-                <Text style={styles.modalOptionText}>📸 Open Camera</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.modalOption} onPress={handleImagePick}>
-                <Text style={styles.modalOptionText}>🖼️ Pick from Gallery</Text>
-              </TouchableOpacity>
-
-
-              <TouchableOpacity
-                style={styles.modalAvatarOption}
-                onPress={handleDeleteAvatar}
-              >
-                <Trash size={18} color="red" />
-                <Text style={[styles.modalAvatarText, { color: 'red' }]}>
-                  Remove Current Picture
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </ScrollView>

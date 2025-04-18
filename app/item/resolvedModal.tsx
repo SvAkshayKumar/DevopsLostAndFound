@@ -31,7 +31,8 @@ export default function ResolvedItemDetailsModal({
   onClose,
   itemId,
 }: ResolvedItemDetailsModalProps) {
-  const [feedbackDetails, setFeedbackDetails] = useState<FeedbackDetails | null>(null);
+  const [feedbackDetails, setFeedbackDetails] =
+    useState<FeedbackDetails | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -40,15 +41,15 @@ export default function ResolvedItemDetailsModal({
       fetchFeedbackDetails(itemId);
     }
   }, [isVisible, itemId]); // Ensure it runs when visibility or itemId changes
-  
+
   const fetchFeedbackDetails = async (id: string) => {
     if (!id) return; // Prevent unnecessary fetches
     setLoading(true);
     setFeedbackDetails(null); // Reset to prevent stale data
-  
+
     try {
       console.log('Fetching feedback for item ID:', id);
-  
+
       const { data, error } = await supabase
         .from('feedback')
         .select('*')
@@ -56,21 +57,19 @@ export default function ResolvedItemDetailsModal({
         .order('created_at', { ascending: false }) // Fetch the latest feedback
         .limit(1)
         .single();
-  
+
       console.log('Fetched feedback data:', data);
-  
-      if (error) throw error; 
-  
+
+      if (error) throw error;
+
       setFeedbackDetails(data || null);
     } catch (error) {
-
       Alert.alert('Error', 'Failed to load feedback details');
     } finally {
       setLoading(false);
     }
   };
-  
-  
+
   const renderStars = (rating: number) => {
     return [...Array(5)].map((_, index) => (
       <Star
@@ -85,7 +84,12 @@ export default function ResolvedItemDetailsModal({
   if (!isVisible) return null;
 
   return (
-    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -114,7 +118,9 @@ export default function ResolvedItemDetailsModal({
                 <Text style={styles.sectionTitle}>Rating</Text>
                 <View style={styles.ratingContainer}>
                   {renderStars(feedbackDetails.rating || 0)}
-                  <Text style={styles.ratingText}>{feedbackDetails.rating || 'N/A'}/5</Text>
+                  <Text style={styles.ratingText}>
+                    {feedbackDetails.rating || 'N/A'}/5
+                  </Text>
                 </View>
               </View>
 
@@ -131,7 +137,9 @@ export default function ResolvedItemDetailsModal({
                     </Text>
                     {feedbackDetails.experience.length > 100 && (
                       <TouchableOpacity
-                        onPress={() => setShowFullDescription(!showFullDescription)}
+                        onPress={() =>
+                          setShowFullDescription(!showFullDescription)
+                        }
                       >
                         <Text style={styles.readMoreText}>
                           {showFullDescription ? 'Show less' : 'Read more'}

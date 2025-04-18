@@ -93,7 +93,7 @@ export default function AuthScreen() {
       Alert.alert('Error', 'Please enter a valid RVU email address');
       return;
     }
-  
+
     setLoading(true);
     try {
       const response = await fetch(
@@ -109,11 +109,11 @@ export default function AuthScreen() {
             organization: 'RVU Lost & Found',
             subject: 'OTP Verification',
           }),
-        }
+        },
       );
-  
+
       if (!response.ok) throw new Error('Failed to send OTP');
-  
+
       setOtpSent(true);
       setResendDisabled(true);
       Alert.alert('Success', 'OTP has been sent to your email');
@@ -123,13 +123,13 @@ export default function AuthScreen() {
       setLoading(false);
     }
   };
-  
+
   const handleVerifyOTP = async () => {
     if (!otp) {
       Alert.alert('Error', 'Please enter the OTP');
       return;
     }
-  
+
     setLoading(true);
     try {
       const response = await fetch(
@@ -143,11 +143,11 @@ export default function AuthScreen() {
             email,
             otp,
           }),
-        }
+        },
       );
-  
+
       if (!response.ok) throw new Error('Invalid OTP');
-  
+
       setOtpVerified(true);
       Alert.alert('Success', 'Email verified successfully');
     } catch (error) {
@@ -155,7 +155,7 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -184,7 +184,7 @@ export default function AuthScreen() {
         return;
       }
 
-      const allRequirementsMet = passwordRequirements.every(req => req.met);
+      const allRequirementsMet = passwordRequirements.every((req) => req.met);
       if (!allRequirementsMet) {
         Alert.alert('Error', 'Please meet all password requirements');
         return;
@@ -201,22 +201,21 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         // First create the user
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+        const { data: authData, error: signUpError } =
+          await supabase.auth.signUp({
+            email,
+            password,
+          });
 
         if (signUpError) throw signUpError;
 
         // Then update the profile with additional information
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: authData.user!.id,
-            email: email,
-            full_name: fullName,
-            phone_number: phoneNumber,
-          });
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: authData.user!.id,
+          email: email,
+          full_name: fullName,
+          phone_number: phoneNumber,
+        });
 
         if (profileError) throw profileError;
 
