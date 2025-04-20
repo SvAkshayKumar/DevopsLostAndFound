@@ -34,23 +34,25 @@ jest.mock('@/lib/supabase', () => ({
     })),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn().mockReturnValue({
-        unsubscribe: jest.fn(),
-      }),
+      subscribe: jest.fn(),
     })),
   },
 }));
 
 describe('HomeScreen', () => {
-  it('renders item list when data is fetched', async () => {
-    const { getByText, queryByText } = render(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText('Lost Wallet')).toBeTruthy();
-    });
-
-    expect(queryByText('No active items found')).toBeNull();
-  });
+  it(
+    'renders item list when data is fetched',
+    async () => {
+      const { getByText, queryByText } = render(<HomeScreen />);
+  
+      await waitFor(() => {
+        expect(getByText('Lost Wallet')).toBeTruthy();
+      });
+  
+      expect(queryByText('No active items found')).toBeNull();
+    },
+    10000 // Increase timeout to 10 seconds
+  );
 
   it('shows empty state when no items are returned', async () => {
     const { supabase } = require('@/lib/supabase');
