@@ -9,7 +9,7 @@
     "lint": "expo lint",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "test": "jest --passWithNoTests"
+    "test": "jest"
   },
   "dependencies": {
     "@emailjs/react-native": "^4.2.2",
@@ -19,6 +19,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.39.3",
+    "@testing-library/react-native": "^13.2.0",
     "dotenv": "^16.4.7",
     "emailjs-com": "^3.2.0",
     "eslint-plugin-react": "^7.37.5",
@@ -60,12 +61,15 @@
   "type": "module",
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@testing-library/jest-native": "^5.4.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "~18.3.12",
     "@types/react-native": "^0.72.8",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint-plugin-prettier": "^5.2.6",
     "jest": "^29.7.0",
     "metro-react-native-babel-preset": "^0.77.0",
+    "ts-jest": "^29.3.2",
     "typescript": "^5.3.3"
   }
 }
