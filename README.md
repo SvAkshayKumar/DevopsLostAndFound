@@ -1,6 +1,6 @@
 # 🚒 Lost and Found App
 
-A full-stack Lost and Found application that helps users report, discover, and recover misplaced items. Built with **React**, **Node.js**, and **SQLite**, it offers a clean interface and powerful features for item tracking.
+A full-stack Lost and Found application that helps users report, discover, and recover misplaced items. Built with **React**, **Node.js**, and **Supabase**, it offers a clean interface and powerful features for item tracking. SQLite is used specifically for OTP generation services.
 
 ---
 
@@ -8,10 +8,9 @@ A full-stack Lost and Found application that helps users report, discover, and r
 **[View the App on Expo](https://expo.dev/accounts/devadigaakshay04/projects/bolt-expo-nativewind/builds/e81c89b8-4502-4197-aeb4-cdf6200374fd)**
 
 ## 🔗 Repositories
-- **Server (OTP & Feedback):** [GitHub](https://github.com/SvAkshayKumar/Otp-Service-And-Feedback-Using-SQLite)
-- **Terms & Conditions:**
-  - **Repo:** [GitHub](https://github.com/SvAkshayKumar/LostAndFound-TandC)
-  - **Hosted:** [Live Site](https://svakshaykumar.github.io/LostAndFound-TandC/)
+- **Terms & Conditions (Live):** [Live Site](https://svakshaykumar.github.io/LostAndFound-TandC/)
+
+> Note: The OTP & Feedback server is not publicly linked here to prevent exposing database access.
 
 ---
 
@@ -77,12 +76,7 @@ npm install
 node index.js
 ```
 
-> Server uses **better-sqlite3** with auto-initializing SQLite.
-
-Alternatively, you can use the OTP & Feedback server from:  
-[https://github.com/SvAkshayKumar/Otp-Service-And-Feedback-Using-SQLite](https://github.com/SvAkshayKumar/Otp-Service-And-Feedback-Using-SQLite)
-
----
+> Server uses **better-sqlite3** for OTP generation with auto-initializing SQLite. The main backend uses **Supabase** for application data.
 
 ### 3. Start the Frontend App
 ```bash
@@ -109,9 +103,8 @@ EMAIL_PASS=your-app-password
 
 ## 🧰 Terms & Conditions
 
-This project includes a simple **Terms & Conditions** page.
+This project includes a simple **Terms & Conditions** page:
 
-- **Repo:** https://github.com/SvAkshayKumar/LostAndFound-TandC  
 - **Live:** https://svakshaykumar.github.io/LostAndFound-TandC/
 
 ---
