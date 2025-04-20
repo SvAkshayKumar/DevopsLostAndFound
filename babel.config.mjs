@@ -1,4 +1,3 @@
-// babel.config.mjs
 export default function (api) {
   api.cache(true);
   return {
@@ -7,6 +6,7 @@ export default function (api) {
       [
         'module-resolver',
         {
+          root: ['./'],
           alias: {
             '@': './',
           },

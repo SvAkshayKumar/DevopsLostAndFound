@@ -2,8 +2,9 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",              // 👈 base is the root folder
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"]             // so @/supabase/... resolves from root
     }
   },
   "include": [

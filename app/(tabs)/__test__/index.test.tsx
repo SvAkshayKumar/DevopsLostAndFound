@@ -9,27 +9,41 @@ jest.mock('expo-router', () => ({
   }),
 }));
 
-// Mock supabase
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn(), // The order function will be mocked in individual tests
-    })),
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-    })),
-  },
-}));
+// Let’s declare a reference to mockOrder so we can use it in tests
+let mockOrder: jest.Mock;
+
+// Mock supabase inline to avoid Babel transformation issues
+jest.mock('../../../lib/supabase', () => {
+  const mockSelect = jest.fn().mockReturnThis();
+  const mockEq = jest.fn().mockReturnThis();
+  mockOrder = jest.fn();
+
+  const fromMock = jest.fn(() => ({
+    select: mockSelect,
+    eq: mockEq,
+    order: mockOrder,
+  }));
+
+  const mockChannel = jest.fn(() => ({
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn(),
+  }));
+
+  return {
+    supabase: {
+      from: fromMock,
+      channel: mockChannel,
+    },
+  };
+});
 
 describe('HomeScreen', () => {
-  it('renders item list when data is fetched', async () => {
-    const { getByText, queryByText } = render(<HomeScreen />);
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-    // Mocking the resolved value for when items are returned
-    supabase.from().order.mockResolvedValueOnce({
+  it('renders item list when data is fetched', async () => {
+    mockOrder.mockResolvedValueOnce({
       data: [
         {
           id: '1',
@@ -46,16 +60,17 @@ describe('HomeScreen', () => {
       error: null,
     });
 
+    const { getByText, queryByText } = render(<HomeScreen />);
+
     await waitFor(() => {
       expect(getByText('Lost Wallet')).toBeTruthy();
     });
 
     expect(queryByText('No active items found')).toBeNull();
-  }, 10000); // Increase timeout to 10 seconds
+  });
 
   it('shows empty state when no items are returned', async () => {
-    // Mocking the resolved value for when no items are returned
-    supabase.from().order.mockResolvedValueOnce({
+    mockOrder.mockResolvedValueOnce({
       data: [],
       error: null,
     });
