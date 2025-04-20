@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../index';
 
 // Mock navigation
@@ -15,22 +15,7 @@ jest.mock('@/lib/supabase', () => ({
     from: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({
-        data: [
-          {
-            id: '1',
-            title: 'Lost Wallet',
-            description: 'Black leather wallet',
-            type: 'lost',
-            image_url: '',
-            created_at: new Date().toISOString(),
-            user_id: '123',
-            user_email: 'john@example.com',
-            status: 'active',
-          },
-        ],
-        error: null,
-      }),
+      order: jest.fn(), // The order function will be mocked in individual tests
     })),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
@@ -40,22 +25,36 @@ jest.mock('@/lib/supabase', () => ({
 }));
 
 describe('HomeScreen', () => {
-  it(
-    'renders item list when data is fetched',
-    async () => {
-      const { getByText, queryByText } = render(<HomeScreen />);
-  
-      await waitFor(() => {
-        expect(getByText('Lost Wallet')).toBeTruthy();
-      });
-  
-      expect(queryByText('No active items found')).toBeNull();
-    },
-    10000 // Increase timeout to 10 seconds
-  );
+  it('renders item list when data is fetched', async () => {
+    const { getByText, queryByText } = render(<HomeScreen />);
+
+    // Mocking the resolved value for when items are returned
+    supabase.from().order.mockResolvedValueOnce({
+      data: [
+        {
+          id: '1',
+          title: 'Lost Wallet',
+          description: 'Black leather wallet',
+          type: 'lost',
+          image_url: '',
+          created_at: new Date().toISOString(),
+          user_id: '123',
+          user_email: 'john@example.com',
+          status: 'active',
+        },
+      ],
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(getByText('Lost Wallet')).toBeTruthy();
+    });
+
+    expect(queryByText('No active items found')).toBeNull();
+  }, 10000); // Increase timeout to 10 seconds
 
   it('shows empty state when no items are returned', async () => {
-    const { supabase } = require('@/lib/supabase');
+    // Mocking the resolved value for when no items are returned
     supabase.from().order.mockResolvedValueOnce({
       data: [],
       error: null,

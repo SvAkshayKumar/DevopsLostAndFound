@@ -46,9 +46,10 @@
 // ];
 
 // eslint.config.js
+// eslint.config.js
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import prettierPlugin from 'eslint-plugin-prettier'; // ✅ import the plugin
+import prettierPlugin from 'eslint-plugin-prettier';
 
 export default [
   js.configs.recommended,
@@ -59,41 +60,38 @@ export default [
       parser: tseslint.parser,
     },
     plugins: {
-      prettier: prettierPlugin, // ✅ register the plugin
+      prettier: prettierPlugin,
     },
     rules: {
-      // ESLint rules
       '@typescript-eslint/no-unused-vars': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
-      'no-undef': 'warn', // general no-undef rule
-
-      // Prettier rule
+      'no-undef': 'warn', // Allow warnings for undefined variables (for `process`)
       'prettier/prettier': 'warn',
     },
   },
   {
-    files: ['*.config.js'], // ✅ Allow Node.js globals for config files
+    files: ['*.config.js'],
     languageOptions: {
       globals: {
-        process: 'readonly',
+        process: 'readonly', // Prevent 'process' undefined warnings
         module: 'readonly',
       },
     },
   },
   {
-    files: ['**/*.tsx', '**/*.ts'], // ✅ Allow browser globals like `window`, `fetch`, etc.
+    files: ['**/*.tsx', '**/*.ts'],
     languageOptions: {
       globals: {
-        'console': 'readonly', // Allow `console`
-        'fetch': 'readonly', // Allow `fetch`
-        'setTimeout': 'readonly', // Allow `setTimeout`
-        'clearTimeout': 'readonly', // Allow `clearTimeout`
-        'global': 'readonly', // Allow `global`
-        'NodeJS': 'readonly', // Allow `NodeJS`
-        'setInterval': 'readonly', // Allow `setInterval`
-        'clearInterval': 'readonly', // Allow `clearInterval`
-        'window': 'readonly', // Allow `window`
-        // Any other specific globals you need to define without leading or trailing whitespace.
+        'console': 'readonly',
+        'fetch': 'readonly',
+        'setTimeout': 'readonly',
+        'clearTimeout': 'readonly',
+        'global': 'readonly',
+        'NodeJS': 'readonly',
+        'setInterval': 'readonly',
+        'clearInterval': 'readonly',
+        'window': 'readonly',
+        // Add more globals here as needed
       },
     },
   },
