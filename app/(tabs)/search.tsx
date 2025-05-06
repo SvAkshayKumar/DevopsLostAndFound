@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Keyboard, // Import Keyboard
 } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -42,13 +43,10 @@ export default function SearchScreen() {
 
   useEffect(() => {
     searchItems();
-  }, [filters]);
+  }, [filters]); // Removed searchQuery from dependency array here, handled by debounce below
 
   const searchItems = async () => {
-    if (!searchQuery.trim() && filters.type === 'all' && !filters.onlyMine) {
-      setItems([]);
-      return;
-    }
+    // Removed the initial check for empty query here as debounce handles it
 
     setLoading(true);
     const {
@@ -57,9 +55,10 @@ export default function SearchScreen() {
 
     let query = supabase.from('items').select('*').eq('status', 'active');
 
-    if (searchQuery.trim()) {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
       query = query.or(
-        `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`,
+        `title.ilike.%${trimmedQuery}%,description.ilike.%${trimmedQuery}%`,
       );
     }
 
@@ -75,18 +74,41 @@ export default function SearchScreen() {
 
     const { data, error } = await query;
 
+    setLoading(false); // Set loading false earlier
+
     if (error) {
       console.error('Error searching items:', error);
+      setItems([]); // Clear items on error
     } else {
       setItems(data || []);
     }
-    setLoading(false);
   };
 
+  // Debounced search effect
   useEffect(() => {
-    const debounce = setTimeout(searchItems, 300);
+    // Don't search immediately if query is empty unless filters are active
+    if (!searchQuery.trim() && filters.type === 'all' && !filters.onlyMine) {
+       setItems([]); // Clear results if query is empty and no filters active
+       setLoading(false); // Ensure loading is off
+       return; // Exit early
+    }
+
+    setLoading(true); // Show loading indicator while typing/waiting for debounce
+    const debounce = setTimeout(() => {
+        searchItems(); // searchItems will set loading to false when done
+    }, 500); // Increased debounce time slightly
+
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, filters]); // Re-added filters here for the debounce logic
+
+  const handleScrollBegin = () => {
+    // Close keyboard if open
+    Keyboard.dismiss();
+    // Close filters if open
+    if (showFilters) {
+      setShowFilters(false);
+    }
+  };
 
   const renderItem = ({ item }: { item: Item }) => (
     <TouchableOpacity
@@ -103,6 +125,7 @@ export default function SearchScreen() {
             style={[
               styles.itemType,
               { backgroundColor: item.type === 'lost' ? '#fee2e2' : '#dcfce7' },
+              { color: item.type === 'lost' ? '#b91c1c' : '#15803d' }, // Added text color for contrast
             ]}
           >
             {item.type.toUpperCase()}
@@ -112,8 +135,8 @@ export default function SearchScreen() {
           {item.description}
         </Text>
         <Text style={styles.itemMeta}>
-          Posted by {item.user_email} •{' '}
-          {new Date(item.created_at).toLocaleDateString()}
+          {/* Displaying only date for brevity */}
+          Posted {new Date(item.created_at).toLocaleDateString()}
         </Text>
       </View>
     </TouchableOpacity>
@@ -121,6 +144,7 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header remains outside FlatList */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <SearchIcon size={20} color="#64748b" style={styles.searchIcon} />
@@ -130,6 +154,8 @@ export default function SearchScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
+            returnKeyType="search" // Improves keyboard UX
+            onSubmitEditing={searchItems} // Optional: trigger search on keyboard submit
           />
           <TouchableOpacity
             onPress={() => setShowFilters(!showFilters)}
@@ -143,8 +169,8 @@ export default function SearchScreen() {
               size={20}
               color={
                 filters.type !== 'all' || filters.onlyMine
-                  ? '#0891b2'
-                  : '#64748b'
+                  ? '#0891b2' // Active color
+                  : '#64748b' // Inactive color
               }
             />
           </TouchableOpacity>
@@ -152,8 +178,9 @@ export default function SearchScreen() {
 
         {showFilters && (
           <View style={styles.filterContainer}>
+            {/* --- Type Filters --- */}
             <View style={styles.filterSection}>
-              <Text style={styles.filterTitle}>Type</Text>
+              {/* Optional Title: <Text style={styles.filterTitle}>Item Type</Text> */}
               <View style={styles.filterOptions}>
                 <TouchableOpacity
                   style={[
@@ -206,6 +233,7 @@ export default function SearchScreen() {
               </View>
             </View>
 
+            {/* --- My Items Filter --- */}
             <View style={styles.filterSection}>
               <TouchableOpacity
                 style={[
@@ -230,20 +258,27 @@ export default function SearchScreen() {
         )}
       </View>
 
+      {/* FlatList handles scrolling */}
       <FlatList
         data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        onScrollBeginDrag={handleScrollBegin} // <-- CLOSE FILTERS ON SCROLL START
+        keyboardShouldPersistTaps="handled" // Helps with tapping items while keyboard is up
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {searchQuery || filters.type !== 'all' || filters.onlyMine
-                ? 'No items found matching your search'
-                : 'Start typing to search for items'}
-            </Text>
-          </View>
+          !loading ? ( // Only show empty state if not loading
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {searchQuery || filters.type !== 'all' || filters.onlyMine
+                  ? 'No items found matching your search/filters'
+                  : 'Start typing or apply filters to search'}
+              </Text>
+            </View>
+          ) : null // Don't show empty state while loading
         }
+        // Optional: Add loading indicator
+        // ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 20 }} size="large" color="#0891b2" /> : null}
       />
     </View>
   );
@@ -252,59 +287,58 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8fafc', // Light grey background
   },
   header: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#ffffff', // White header background
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    ...Platform.select({
-      ios: {
-        paddingTop: 60,
-      },
-      android: {
-        paddingTop: 40,
-      },
-    }),
+    borderBottomColor: '#e2e8f0', // Light border
+    paddingTop: Platform.OS === 'ios' ? 50 : 30, // Adjusted status bar padding slightly
+    paddingBottom: 10, // Add some padding at the bottom of the header
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
-    backgroundColor: '#f1f5f9',
+    // Combined margin rules: Added more top margin
+    marginTop: 10, // <-- ADDED SPACING ABOVE SEARCH BAR (adjust as needed)
+    marginHorizontal: 16,
+    marginBottom: 10, // Adjusted bottom margin
+    backgroundColor: '#f1f5f9', // Lighter input background
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12, // Slightly less horizontal padding
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    height: 44, // Slightly smaller height
     fontSize: 16,
-    color: '#1e293b',
+    color: '#1e293b', // Darker text
   },
   filterButton: {
     padding: 8,
     marginLeft: 8,
+    borderRadius: 8, // Add border radius for consistency
   },
   filterActive: {
-    backgroundColor: '#e0f2fe',
-    borderRadius: 8,
+    backgroundColor: '#e0f7fa', // Light cyan background when active
   },
   filterContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    paddingHorizontal: 16, // Align filter padding with search margin
+    paddingTop: 5, // Reduced top padding
+    paddingBottom: 5, // Add bottom padding before the list starts
+    // Removed borderTop as header already has borderBottom
   },
   filterSection: {
-    marginBottom: 16,
+    marginBottom: 10, // Space between filter sections
   },
   filterTitle: {
-    fontSize: 14,
+    fontSize: 13, // Smaller title
     fontWeight: '600',
-    color: '#64748b',
+    color: '#475569', // Slightly darker grey
     marginBottom: 8,
+    marginLeft: 4, // Slight indent
   },
   filterOptions: {
     flexDirection: 'row',
@@ -312,99 +346,124 @@ const styles = StyleSheet.create({
   },
   filterOption: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 10, // Adjusted padding
+    paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#e2e8f0', // Default background
     alignItems: 'center',
+    justifyContent: 'center', // Center text vertically
   },
   filterOptionActive: {
-    backgroundColor: '#0891b2',
+    backgroundColor: '#0891b2', // Active background (cyan)
+    shadowColor: '#0891b2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   filterOptionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: '#334155', // Default text color
   },
   filterOptionTextActive: {
-    color: '#ffffff',
+    color: '#ffffff', // Active text color (white)
   },
   myItemsFilter: {
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#e2e8f0', // Default background
     alignItems: 'center',
+    justifyContent: 'center',
   },
   myItemsFilterActive: {
-    backgroundColor: '#0891b2',
+    backgroundColor: '#0891b2', // Active background (cyan)
+    shadowColor: '#0891b2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   myItemsFilterText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: '#334155', // Default text color
   },
   myItemsFilterTextActive: {
-    color: '#ffffff',
+    color: '#ffffff', // Active text color
   },
   listContent: {
-    padding: 16,
+    paddingTop: 10, // Add some space between header/filters and list
+    paddingHorizontal: 16,
+    paddingBottom: 30, // Ensure space at the bottom
   },
   itemCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: 'hidden', // Keep image corners rounded
+    flexDirection: 'row', // Make card horizontal
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowColor: '#94a3b8', // Lighter shadow color
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   itemImage: {
-    width: '100%',
-    height: 200,
+    width: 100, // Fixed width for image
+    height: 100, // Fixed height (make it square or adjust as needed)
     resizeMode: 'cover',
   },
   itemContent: {
-    padding: 16,
+    flex: 1, // Take remaining space
+    padding: 12,
+    justifyContent: 'space-between', // Distribute content vertically
   },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start', // Align items to the top
+    marginBottom: 4,
   },
   itemTitle: {
-    fontSize: 18,
+    fontSize: 16, // Slightly smaller title
     fontWeight: '600',
     color: '#1e293b',
-    flex: 1,
+    flex: 1, // Allow title to wrap if long
+    marginRight: 8, // Space before type badge
   },
   itemType: {
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    fontSize: 10, // Smaller badge text
+    fontWeight: '700', // Bolder badge text
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: 4,
-    overflow: 'hidden',
-    marginLeft: 8,
+    overflow: 'hidden', // Keep corners rounded
+    // Background and text color set dynamically in renderItem
+    flexShrink: 0, // Prevent badge from shrinking
   },
   itemDescription: {
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller description
     color: '#64748b',
-    marginBottom: 8,
+    marginBottom: 6,
+    lineHeight: 18, // Improve readability
   },
   itemMeta: {
-    fontSize: 12,
-    color: '#94a3b8',
+    fontSize: 11, // Smaller meta text
+    color: '#94a3b8', // Lighter meta text
   },
   emptyState: {
+    flex: 1, // Take up available space if list is short
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
+    marginTop: 50, // Add margin from the top
   },
   emptyStateText: {
     fontSize: 16,
     color: '#64748b',
     textAlign: 'center',
+    lineHeight: 24,
   },
 });

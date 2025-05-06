@@ -1,10 +1,9 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams,useRouter } from 'expo-router';
 import { View, Text, StyleSheet, Button } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 
 const ChatScreen = () => {
   const { chatId } = useLocalSearchParams(); // Capture chatId
-  const navigation = useNavigation(); // Get navigation object
+  const router = useRouter(); // Get navigation object
 
   return (
     <View style={styles.container}>
@@ -15,7 +14,7 @@ const ChatScreen = () => {
       <Text style={styles.chatId}>Chat ID: {chatId}</Text>
 
       {/* Go Back Button */}
-      <Button title="Go Back" onPress={() => navigation.goBack()} />
+      <Button title="Go Back" onPress={() => router.replace('/(tabs)/chats')} />
     </View>
   );
 };
