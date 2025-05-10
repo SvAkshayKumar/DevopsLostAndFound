@@ -49,8 +49,14 @@ export default [
   // Add React Native environment if applicable
   {
     files: ['**/*.tsx', '**/*.ts'],
-    env: {
-      'react-native/react-native': true,
+    languageOptions: {
+      globals: {
+        __DEV__: 'readonly',
+        navigator: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+      },
     },
-  },
+  }
+  
 ];
