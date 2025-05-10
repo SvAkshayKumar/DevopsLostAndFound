@@ -88,14 +88,14 @@ export default function SearchScreen() {
   useEffect(() => {
     // Don't search immediately if query is empty unless filters are active
     if (!searchQuery.trim() && filters.type === 'all' && !filters.onlyMine) {
-       setItems([]); // Clear results if query is empty and no filters active
-       setLoading(false); // Ensure loading is off
-       return; // Exit early
+      setItems([]); // Clear results if query is empty and no filters active
+      setLoading(false); // Ensure loading is off
+      return; // Exit early
     }
 
     setLoading(true); // Show loading indicator while typing/waiting for debounce
     const debounce = setTimeout(() => {
-        searchItems(); // searchItems will set loading to false when done
+      searchItems(); // searchItems will set loading to false when done
     }, 500); // Increased debounce time slightly
 
     return () => clearTimeout(debounce);

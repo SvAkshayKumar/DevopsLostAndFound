@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { X,Lock, Eye, EyeOff } from 'lucide-react-native';
+import { X, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 type PasswordModalsProps = {
@@ -89,19 +89,18 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
       if (error) throw error;
 
       Alert.alert('Success', 'Password updated successfully');
-      try{
+      try {
         const { error } = await supabase.auth.signOut({ scope: 'global' });
-      
+
         if (error) {
           throw error;
         }
         Alert.alert(
           'Password Changed Successfully',
           'You have been signed out from all the devices. Please log in again on this device to continue.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
-      }
-      catch (error) {
+      } catch (error) {
         Alert.alert('Error', 'Failed to sign out of all device');
       }
       resetPasswordStates();
@@ -238,10 +237,7 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                 >
                   <Text style={styles.buttonText}>Verify OTP</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={handleSendOtp}
-                >
+                <TouchableOpacity style={styles.button} onPress={handleSendOtp}>
                   <Text style={styles.buttonText}>Resend OTP</Text>
                 </TouchableOpacity>
               </>
@@ -255,13 +251,13 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                     value={newPassword}
                     onChangeText={setNewPassword}
                     secureTextEntry={!showNewPassword} // Control visibility
-                    textContentType="newPassword"      // Helps password managers
-                    editable={!loading}                // Match reference
+                    textContentType="newPassword" // Helps password managers
+                    editable={!loading} // Match reference
                   />
                   <TouchableOpacity
                     onPress={() => setShowNewPassword(!showNewPassword)} // Toggle state
                     style={styles.eyeIcon}
-                    disabled={loading}                 // Match reference
+                    disabled={loading} // Match reference
                   >
                     {showNewPassword ? (
                       <EyeOff size={20} color="#64748b" />
@@ -281,12 +277,12 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showConfirmPassword} // Control visibility
                     // textContentType defaults usually fine here
-                    editable={!loading}                    // Match reference
+                    editable={!loading} // Match reference
                   />
                   <TouchableOpacity
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)} // Toggle state
                     style={styles.eyeIcon}
-                    disabled={loading}                     // Match reference
+                    disabled={loading} // Match reference
                   >
                     {showConfirmPassword ? (
                       <EyeOff size={20} color="#64748b" />
@@ -342,15 +338,15 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                     value={oldPassword}
                     onChangeText={setOldPassword}
                     secureTextEntry={!showOldPassword} // Control visibility with state
-                    textContentType="password"        // Appropriate for current password
-                    editable={!loading}               // Match reference pattern
+                    textContentType="password" // Appropriate for current password
+                    editable={!loading} // Match reference pattern
                   />
                   <TouchableOpacity
                     onPress={() => setShowOldPassword(!showOldPassword)} // Toggle this specific state
                     style={styles.eyeIcon}
-                    disabled={loading}                // Match reference pattern
+                    disabled={loading} // Match reference pattern
                   >
-                    {showOldPassword ? (               // Check this specific state
+                    {showOldPassword ? ( // Check this specific state
                       <EyeOff size={20} color="#64748b" />
                     ) : (
                       <Eye size={20} color="#64748b" />
@@ -374,13 +370,13 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                     value={newPassword}
                     onChangeText={setNewPassword}
                     secureTextEntry={!showNewPassword} // Control visibility
-                    textContentType="newPassword"      // Helps password managers
-                    editable={!loading}                // Match reference
+                    textContentType="newPassword" // Helps password managers
+                    editable={!loading} // Match reference
                   />
                   <TouchableOpacity
                     onPress={() => setShowNewPassword(!showNewPassword)} // Toggle state
                     style={styles.eyeIcon}
-                    disabled={loading}                 // Match reference
+                    disabled={loading} // Match reference
                   >
                     {showNewPassword ? (
                       <EyeOff size={20} color="#64748b" />
@@ -400,12 +396,12 @@ const PasswordModals: React.FC<PasswordModalsProps> = ({
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showConfirmPassword} // Control visibility
                     // textContentType defaults usually fine here
-                    editable={!loading}                    // Match reference
+                    editable={!loading} // Match reference
                   />
                   <TouchableOpacity
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)} // Toggle state
                     style={styles.eyeIcon}
-                    disabled={loading}                     // Match reference
+                    disabled={loading} // Match reference
                   >
                     {showConfirmPassword ? (
                       <EyeOff size={20} color="#64748b" />

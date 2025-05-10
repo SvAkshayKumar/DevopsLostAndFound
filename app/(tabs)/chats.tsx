@@ -176,11 +176,11 @@ export default function ChatsScreen() {
   const formatTime = (dateString: string) => {
     const now = new Date();
     const contactDate = new Date(dateString);
-  
+
     const diffDays = Math.floor(
-      (now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - contactDate.getTime()) / (1000 * 60 * 60 * 24),
     );
-  
+
     if (diffDays === 0)
       return contactDate.toLocaleTimeString('en-IN', {
         hour: 'numeric',
@@ -188,22 +188,21 @@ export default function ChatsScreen() {
         hour12: true,
         timeZone: 'Asia/Kolkata',
       });
-  
+
     if (diffDays === 1) return 'Yesterday';
-  
+
     if (diffDays < 7)
       return contactDate.toLocaleDateString('en-IN', {
         weekday: 'long',
         timeZone: 'Asia/Kolkata',
       });
-  
+
     return contactDate.toLocaleDateString('en-IN', {
       month: 'short',
       day: 'numeric',
       timeZone: 'Asia/Kolkata',
     });
   };
-  
 
   const renderItem = ({ item }: { item: ContactPreview }) => (
     <TouchableOpacity

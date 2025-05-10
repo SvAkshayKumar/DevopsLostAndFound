@@ -26,11 +26,13 @@ const lightTheme = {
   textSecondary: '#666666',
 };
 
-
 export default function TabLayout() {
   return (
     // Apply dark background to SafeAreaView to prevent light flashes/borders
-    <SafeAreaView style={{ flex: 1, backgroundColor: darkTheme.bgSecondary }} edges={['top']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: darkTheme.bgSecondary }}
+      edges={['top']}
+    >
       <Tabs
         screenOptions={{
           tabBarStyle: {
@@ -56,7 +58,6 @@ export default function TabLayout() {
           headerTintColor: lightTheme.textPrimary, // Set color for back button and other icons
         }}
       >
-
         {/* --- Screens remain the same --- */}
         <Tabs.Screen
           name="index"

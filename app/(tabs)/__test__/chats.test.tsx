@@ -45,7 +45,9 @@ describe('ChatsScreen', () => {
     const { getByText } = render(<ChatsScreen />);
 
     await waitFor(() => {
-      expect(getByText(/No connections yet|Login to view Connections/i)).toBeTruthy();
+      expect(
+        getByText(/No connections yet|Login to view Connections/i),
+      ).toBeTruthy();
     });
   });
 

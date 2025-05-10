@@ -1,5 +1,10 @@
 import React from 'react';
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  waitFor,
+  screen,
+} from '@testing-library/react-native';
 import ResolvedItemDetailsModal from '../../item/resolvedModal';
 import { supabase } from '@/lib/supabase';
 import { Alert } from 'react-native';
@@ -33,7 +38,8 @@ const mockFeedback = {
   item_id: '123',
   helper_name: 'Jane Doe',
   rating: 4,
-  experience: 'Jane was extremely helpful and guided me through the entire process smoothly.',
+  experience:
+    'Jane was extremely helpful and guided me through the entire process smoothly.',
   created_at: '2024-01-01T12:00:00Z',
 };
 
@@ -102,7 +108,10 @@ describe('ResolvedItemDetailsModal', () => {
     render(<ResolvedItemDetailsModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to load feedback details');
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Error',
+        'Failed to load feedback details',
+      );
     });
   });
 });

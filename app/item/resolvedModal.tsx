@@ -109,7 +109,10 @@ export default function ResolvedItemDetailsModal({
                 </Text>
                 <Text style={styles.dateText}>
                   {feedbackDetails.created_at
-                    ? new Date(feedbackDetails.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
+                    ? new Date(feedbackDetails.created_at).toLocaleDateString(
+                        'en-IN',
+                        { timeZone: 'Asia/Kolkata' },
+                      )
                     : 'No date available'}
                 </Text>
               </View>

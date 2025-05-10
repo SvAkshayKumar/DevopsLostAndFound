@@ -34,7 +34,7 @@ describe('FeedbackModal Component', () => {
         onSubmit={mockOnSubmit}
         type="lost"
         itemId="123"
-      />
+      />,
     );
 
     expect(getByPlaceholderText("Helper's Name / Description")).toBeTruthy();
@@ -49,7 +49,7 @@ describe('FeedbackModal Component', () => {
         onSubmit={mockOnSubmit}
         type="lost"
         itemId="123"
-      />
+      />,
     );
 
     const submitButton = getByText('Submit Feedback');

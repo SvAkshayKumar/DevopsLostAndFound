@@ -101,7 +101,7 @@ export default function ItemScreen() {
     const initialize = async () => {
       // Start loading only if not already loading
       if (isMounted && !isLoading) {
-         setIsLoading(true);
+        setIsLoading(true);
       }
 
       try {
@@ -219,7 +219,9 @@ export default function ItemScreen() {
     try {
       const { data, error } = await supabase
         .from('contact_attempts')
-        .select(`id, method, created_at, contacted_by_user: contacted_by (email)`)
+        .select(
+          `id, method, created_at, contacted_by_user: contacted_by (email)`,
+        )
         .eq('item_id', itemId)
         .order('created_at', { ascending: false });
 
@@ -263,7 +265,10 @@ export default function ItemScreen() {
     const trimmedDesc = editedDescription.trim();
 
     if (!trimmedTitle || !trimmedDesc) {
-      return Alert.alert('Validation Error', 'Title and description cannot be empty.');
+      return Alert.alert(
+        'Validation Error',
+        'Title and description cannot be empty.',
+      );
     }
 
     if (
@@ -295,7 +300,14 @@ export default function ItemScreen() {
       } else {
         // Fallback: Optimistic update if select fails
         setItem((prev) =>
-          prev ? { ...prev, title: trimmedTitle, description: trimmedDesc, type: editedType } : null,
+          prev
+            ? {
+                ...prev,
+                title: trimmedTitle,
+                description: trimmedDesc,
+                type: editedType,
+              }
+            : null,
         );
       }
       setIsEditing(false);
@@ -322,239 +334,387 @@ export default function ItemScreen() {
   };
 
   const handleSubmitReport = async () => {
-     if (!item || !currentUser) return;
-     if (!selectedReason) { Alert.alert("Validation Error", "Please select a reason."); return; }
-     if (selectedReason === 'Other' && !reportDescription.trim()) { Alert.alert("Validation Error", "Please provide a description for 'Other'."); return; }
-     setIsSubmitting(true);
-     try {
-         const { data: profile, error: profileError } = await supabase.from('profiles').select('full_name, email').eq('id', currentUser).single();
-         if (profileError || !profile?.email) { console.error('Error fetching reporter profile/email:', profileError); throw new Error("Could not retrieve your user details."); }
-         const { error: insertError } = await supabase.from('reports').insert([{ item_id: item.id, reported_by_email: profile.email, item_owner_email: item.user_email, report_reason: selectedReason, report_description: reportDescription.trim() || null, status: 'pending' }]);
-         if (insertError) { console.error('Error inserting report:', insertError); throw new Error("Could not submit the report to the database."); }
-         const emailPayload = { name: profile.full_name || 'User', adminEmail: 'adevadiga2005@gmail.com', reporter_email: profile.email, reason: selectedReason, description: reportDescription.trim(), item_owner_email: item.user_email, item_details: { id: item.id, title: item.title, /* ... */ } };
-         const res = await fetch('https://otp-service-and-feedback-using-sq-lite.vercel.app/api/report/item', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailPayload) });
-         if (!res.ok) { const errorData = await res.text(); console.error('Failed to send report email:', res.status, errorData); Alert.alert("Report Submitted (Email Failed)", "Report saved, but notification failed. Contact support if needed."); }
-         else { Alert.alert("Success", "Report submitted successfully."); router.replace('/'); }
-         setReportModalVisible(false);
-     } catch (error: any) {
-         console.error('Report submission error:', error);
-         Alert.alert("Error", `Report submission failed: ${error.message}`);
-     } finally {
-         setIsSubmitting(false);
-     }
+    if (!item || !currentUser) return;
+    if (!selectedReason) {
+      Alert.alert('Validation Error', 'Please select a reason.');
+      return;
+    }
+    if (selectedReason === 'Other' && !reportDescription.trim()) {
+      Alert.alert(
+        'Validation Error',
+        "Please provide a description for 'Other'.",
+      );
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', currentUser)
+        .single();
+      if (profileError || !profile?.email) {
+        console.error('Error fetching reporter profile/email:', profileError);
+        throw new Error('Could not retrieve your user details.');
+      }
+      const { error: insertError } = await supabase.from('reports').insert([
+        {
+          item_id: item.id,
+          reported_by_email: profile.email,
+          item_owner_email: item.user_email,
+          report_reason: selectedReason,
+          report_description: reportDescription.trim() || null,
+          status: 'pending',
+        },
+      ]);
+      if (insertError) {
+        console.error('Error inserting report:', insertError);
+        throw new Error('Could not submit the report to the database.');
+      }
+      const emailPayload = {
+        name: profile.full_name || 'User',
+        adminEmail: 'adevadiga2005@gmail.com',
+        reporter_email: profile.email,
+        reason: selectedReason,
+        description: reportDescription.trim(),
+        item_owner_email: item.user_email,
+        item_details: { id: item.id, title: item.title /* ... */ },
+      };
+      const res = await fetch(
+        'https://otp-service-and-feedback-using-sq-lite.vercel.app/api/report/item',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailPayload),
+        },
+      );
+      if (!res.ok) {
+        const errorData = await res.text();
+        console.error('Failed to send report email:', res.status, errorData);
+        Alert.alert(
+          'Report Submitted (Email Failed)',
+          'Report saved, but notification failed. Contact support if needed.',
+        );
+      } else {
+        Alert.alert('Success', 'Report submitted successfully.');
+        router.replace('/');
+      }
+      setReportModalVisible(false);
+    } catch (error: any) {
+      console.error('Report submission error:', error);
+      Alert.alert('Error', `Report submission failed: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleContact = async (method: string) => {
-     if (!currentUser) { Alert.alert('Login Required', 'Please login...', [{ text: 'OK', onPress: () => router.push('/auth') }]); return; }
-     if (!item) return Alert.alert("Error", "Item details missing.");
-     let contactDetail: string | null = null, urlScheme: string | null = null, actionDescription = '';
-     const ownerEmail = item.user_email;
-     const phoneNum = ownerProfile?.phone_number;
-     switch (method) {
+    if (!currentUser) {
+      Alert.alert('Login Required', 'Please login...', [
+        { text: 'OK', onPress: () => router.push('/auth') },
+      ]);
+      return;
+    }
+    if (!item) return Alert.alert('Error', 'Item details missing.');
+    let contactDetail: string | null = null,
+      urlScheme: string | null = null,
+      actionDescription = '';
+    const ownerEmail = item.user_email;
+    const phoneNum = ownerProfile?.phone_number;
+    switch (method) {
       case 'phone':
         contactDetail = ownerProfile?.phone_number || null;
         if (contactDetail) urlScheme = `tel:${contactDetail}`;
         actionDescription = 'call';
         break;
-    case 'email':
+      case 'email':
         contactDetail = ownerEmail;
-        if (contactDetail) urlScheme = `mailto:${contactDetail}?subject=Regarding your item: ${encodeURIComponent(item.title)}`;
-         actionDescription = 'email';
+        if (contactDetail)
+          urlScheme = `mailto:${contactDetail}?subject=Regarding your item: ${encodeURIComponent(item.title)}`;
+        actionDescription = 'email';
         break;
-    case 'sms':
+      case 'sms':
         contactDetail = ownerProfile?.phone_number || null;
-        if (contactDetail) urlScheme = `sms:${contactDetail}${Platform.OS === "ios" ? "&" : "?"}body=${encodeURIComponent(`Hello, I'm contacting you about the item '${item.title}' listed on Lost&Found.`)}`;
-         actionDescription = 'SMS';
+        if (contactDetail)
+          urlScheme = `sms:${contactDetail}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(`Hello, I'm contacting you about the item '${item.title}' listed on Lost&Found.`)}`;
+        actionDescription = 'SMS';
         break;
-    case 'whatsapp':
+      case 'whatsapp':
         contactDetail = ownerProfile?.phone_number || null;
         if (contactDetail) {
-            const whatsappNumber = contactDetail.replace(/[^0-9]/g, ''); // Basic cleaning
-            urlScheme = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I'm contacting you about the item '${item.title}' listed on Lost&Found.`)}`;
+          const whatsappNumber = contactDetail.replace(/[^0-9]/g, ''); // Basic cleaning
+          urlScheme = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello, I'm contacting you about the item '${item.title}' listed on Lost&Found.`)}`;
         }
         actionDescription = 'WhatsApp';
         break;
-         default: return Alert.alert("Error", "Invalid method.");
-     }
-     if (!contactDetail) return Alert.alert('Not Available', `Owner details for ${method} unavailable.`);
-     if (!urlScheme) return Alert.alert("Error", "Could not generate link.");
-     try {
-         const { error: insertError } = await supabase.from('contact_attempts').insert({ contacted_by: currentUser, posted_user_id: item.user_id, item_id: item.id, method: method });
-         if (insertError) { console.warn('Error recording contact attempt:', insertError); Alert.alert('Notice', 'Could not record attempt, proceeding anyway.'); }
-         const canOpen = await Linking.canOpenURL(urlScheme);
-         if (canOpen) await Linking.openURL(urlScheme);
-         else Alert.alert('Cannot Open Link', `Could not ${actionDescription}. App might not be installed.`);
-     } catch (error) {
-         console.error('Error during contact process:', error);
-         Alert.alert('Error', `Failed to initiate ${method}.`);
-     }
+      default:
+        return Alert.alert('Error', 'Invalid method.');
+    }
+    if (!contactDetail)
+      return Alert.alert(
+        'Not Available',
+        `Owner details for ${method} unavailable.`,
+      );
+    if (!urlScheme) return Alert.alert('Error', 'Could not generate link.');
+    try {
+      const { error: insertError } = await supabase
+        .from('contact_attempts')
+        .insert({
+          contacted_by: currentUser,
+          posted_user_id: item.user_id,
+          item_id: item.id,
+          method: method,
+        });
+      if (insertError) {
+        console.warn('Error recording contact attempt:', insertError);
+        Alert.alert('Notice', 'Could not record attempt, proceeding anyway.');
+      }
+      const canOpen = await Linking.canOpenURL(urlScheme);
+      if (canOpen) await Linking.openURL(urlScheme);
+      else
+        Alert.alert(
+          'Cannot Open Link',
+          `Could not ${actionDescription}. App might not be installed.`,
+        );
+    } catch (error) {
+      console.error('Error during contact process:', error);
+      Alert.alert('Error', `Failed to initiate ${method}.`);
+    }
   };
 
   const handleImagePick = async () => {
-     setImagePickerVisible(false);
-     try {
-         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-         if (status !== 'granted') return Alert.alert('Permission Denied', 'Storage permission is required.');
-         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.7 });
-         if (!result.canceled && result.assets?.[0]) await uploadImage(result.assets[0].uri);
-     } catch (error: any) {
-         console.error('Error picking image:', error);
-         Alert.alert('Error', `Image pick failed: ${error.message}`);
-     }
+    setImagePickerVisible(false);
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted')
+        return Alert.alert(
+          'Permission Denied',
+          'Storage permission is required.',
+        );
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.[0])
+        await uploadImage(result.assets[0].uri);
+    } catch (error: any) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', `Image pick failed: ${error.message}`);
+    }
   };
 
   const handleTakePhoto = async () => {
-     setImagePickerVisible(false);
-     try {
-         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-         if (status !== 'granted') return Alert.alert('Permission Denied', 'Camera permission is required.');
-         const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.7 });
-         if (!result.canceled && result.assets?.[0]) await uploadImage(result.assets[0].uri);
-     } catch (error: any) {
-         console.error('Error taking photo:', error);
-         Alert.alert('Error', `Take photo failed: ${error.message}`);
-     }
+    setImagePickerVisible(false);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted')
+        return Alert.alert(
+          'Permission Denied',
+          'Camera permission is required.',
+        );
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets?.[0])
+        await uploadImage(result.assets[0].uri);
+    } catch (error: any) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', `Take photo failed: ${error.message}`);
+    }
   };
 
   const uploadImage = async (uri: string) => {
-     if (!id || !currentUser) return Alert.alert("Error", "Missing ID or user session.");
-     setIsLoading(true);
-     try {
-         const fileInfo = await FileSystem.getInfoAsync(uri);
-         if (!fileInfo.exists) throw new Error('Selected file does not exist.');
-         const fileExt = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-         if (!['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) throw new Error('Invalid file type (JPG, PNG, GIF allowed).');
-         const fileName = `${currentUser}_${Date.now()}.${fileExt}`;
-         const filePath = `public/${fileName}`;
-         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-         const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
-         const { error: uploadError } = await supabase.storage.from('item-images').upload(filePath, Buffer.from(base64, 'base64'), { contentType, cacheControl: '3600', upsert: false });
-         if (uploadError) throw uploadError;
-         const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(filePath);
-         if (!urlData?.publicUrl) throw new Error("Could not retrieve public URL.");
-         const publicUrl = urlData.publicUrl;
-         // Delete Old Image (if exists)
-         if (item?.image_url) {
-             try {
-                 const oldUrlParts = item.image_url.split('/item-images/');
-                 if (oldUrlParts.length > 1) {
-                     const oldFilePath = decodeURIComponent(oldUrlParts[1]);
-                     console.log(`Attempting to delete old image: ${oldFilePath}`);
-                     await supabase.storage.from('item-images').remove([oldFilePath]);
-                 }
-             } catch (deleteError: any) {
-                 console.warn("Could not delete old image (continuing):", deleteError.message);
-             }
-         }
-         // Update DB
-         const { error: updateError } = await supabase.from('items').update({ image_url: publicUrl }).eq('id', id);
-         if (updateError) {
-             console.error("DB update error after upload:", updateError);
-             try { await supabase.storage.from('item-images').remove([filePath]); console.log("Cleaned up orphaned image."); }
-             catch (cleanupError: any) { console.error("Failed to cleanup orphaned image:", cleanupError.message); }
-             throw updateError;
-         }
-         // Success: Update local state
-         setItem((prev) => (prev ? { ...prev, image_url: publicUrl } : null));
-         Alert.alert('Success', 'Image updated successfully!');
-     } catch (error: any) {
-         console.error('Image upload process error:', error);
-         Alert.alert('Upload Failed', `Error: ${error.message}`);
-     } finally {
-         setIsLoading(false);
-     }
+    if (!id || !currentUser)
+      return Alert.alert('Error', 'Missing ID or user session.');
+    setIsLoading(true);
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) throw new Error('Selected file does not exist.');
+      const fileExt = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+      if (!['jpg', 'jpeg', 'png', 'gif'].includes(fileExt))
+        throw new Error('Invalid file type (JPG, PNG, GIF allowed).');
+      const fileName = `${currentUser}_${Date.now()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('item-images')
+        .upload(filePath, Buffer.from(base64, 'base64'), {
+          contentType,
+          cacheControl: '3600',
+          upsert: false,
+        });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from('item-images')
+        .getPublicUrl(filePath);
+      if (!urlData?.publicUrl)
+        throw new Error('Could not retrieve public URL.');
+      const publicUrl = urlData.publicUrl;
+      // Delete Old Image (if exists)
+      if (item?.image_url) {
+        try {
+          const oldUrlParts = item.image_url.split('/item-images/');
+          if (oldUrlParts.length > 1) {
+            const oldFilePath = decodeURIComponent(oldUrlParts[1]);
+            console.log(`Attempting to delete old image: ${oldFilePath}`);
+            await supabase.storage.from('item-images').remove([oldFilePath]);
+          }
+        } catch (deleteError: any) {
+          console.warn(
+            'Could not delete old image (continuing):',
+            deleteError.message,
+          );
+        }
+      }
+      // Update DB
+      const { error: updateError } = await supabase
+        .from('items')
+        .update({ image_url: publicUrl })
+        .eq('id', id);
+      if (updateError) {
+        console.error('DB update error after upload:', updateError);
+        try {
+          await supabase.storage.from('item-images').remove([filePath]);
+          console.log('Cleaned up orphaned image.');
+        } catch (cleanupError: any) {
+          console.error(
+            'Failed to cleanup orphaned image:',
+            cleanupError.message,
+          );
+        }
+        throw updateError;
+      }
+      // Success: Update local state
+      setItem((prev) => (prev ? { ...prev, image_url: publicUrl } : null));
+      Alert.alert('Success', 'Image updated successfully!');
+    } catch (error: any) {
+      console.error('Image upload process error:', error);
+      Alert.alert('Upload Failed', `Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const confirmAndDelete = async () => {
-     if (!item || !id) return;
-     setIsLoading(true);
-     console.log(`Attempting final deletion for item ${item.id}`);
-     try {
-         // 1. Delete image (best effort)
-         if (item.image_url) {
-             try {
-                 const urlParts = item.image_url.split('/item-images/');
-                 if (urlParts.length > 1) {
-                     const filePath = decodeURIComponent(urlParts[1]);
-                     console.log(`Deleting image file: ${filePath}`);
-                     const { error: storageError } = await supabase.storage.from('item-images').remove([filePath]);
-                     if (storageError) console.warn(`Could not delete image (continuing): ${storageError.message}`);
-                     else console.log(`Successfully deleted image: ${filePath}`);
-                 }
-             } catch (imgDelErr: any) {
-                 console.warn(`Error parsing/deleting image (continuing): ${imgDelErr.message}`);
-             }
-         }
-         // 2. Delete item (critical)
-         console.log(`Deleting item record: ${item.id}`);
-         const { error: dbError } = await supabase.from('items').delete().eq('id', item.id);
-         if (dbError) throw dbError; // Fail fast if DB delete fails
-         // 3. Success Navigation
-         console.log(`Successfully deleted item: ${item.id}`);
-         Alert.alert('Deleted', 'Item has been deleted successfully.');
-         router.replace('/'); // Navigate home
-     } catch (error: any) {
-         console.error('Error during deletion process:', error);
-         Alert.alert('Error', `Failed to delete the item: ${error.message}`);
-         setIsLoading(false); // Only stop loading on error (success navigates away)
-     }
+    if (!item || !id) return;
+    setIsLoading(true);
+    console.log(`Attempting final deletion for item ${item.id}`);
+    try {
+      // 1. Delete image (best effort)
+      if (item.image_url) {
+        try {
+          const urlParts = item.image_url.split('/item-images/');
+          if (urlParts.length > 1) {
+            const filePath = decodeURIComponent(urlParts[1]);
+            console.log(`Deleting image file: ${filePath}`);
+            const { error: storageError } = await supabase.storage
+              .from('item-images')
+              .remove([filePath]);
+            if (storageError)
+              console.warn(
+                `Could not delete image (continuing): ${storageError.message}`,
+              );
+            else console.log(`Successfully deleted image: ${filePath}`);
+          }
+        } catch (imgDelErr: any) {
+          console.warn(
+            `Error parsing/deleting image (continuing): ${imgDelErr.message}`,
+          );
+        }
+      }
+      // 2. Delete item (critical)
+      console.log(`Deleting item record: ${item.id}`);
+      const { error: dbError } = await supabase
+        .from('items')
+        .delete()
+        .eq('id', item.id);
+      if (dbError) throw dbError; // Fail fast if DB delete fails
+      // 3. Success Navigation
+      console.log(`Successfully deleted item: ${item.id}`);
+      Alert.alert('Deleted', 'Item has been deleted successfully.');
+      router.replace('/'); // Navigate home
+    } catch (error: any) {
+      console.error('Error during deletion process:', error);
+      Alert.alert('Error', `Failed to delete the item: ${error.message}`);
+      setIsLoading(false); // Only stop loading on error (success navigates away)
+    }
   };
 
   const handleDeleteRequest = () => {
-     if (!item) return;
-     Alert.alert(
-         'Confirm Deletion',
-         'Are you sure you want to permanently delete this item? This action cannot be undone.',
-         [
-             { text: 'Cancel', style: 'cancel' },
-             { text: 'Delete', style: 'destructive', onPress: confirmAndDelete },
-         ],
-         { cancelable: true },
-     );
+    if (!item) return;
+    Alert.alert(
+      'Confirm Deletion',
+      'Are you sure you want to permanently delete this item? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: confirmAndDelete },
+      ],
+      { cancelable: true },
+    );
   };
 
   const handleDeleteImage = () => {
-     if (!item?.image_url || !id) return Alert.alert('No Image', 'There is no image to delete.');
-     Alert.alert(
-         'Delete Image Confirmation',
-         'Are you sure you want to delete the image for this item?',
-         [
-             { text: 'Cancel', style: 'cancel' },
-             {
-                 text: 'Delete Image',
-                 style: 'destructive',
-                 onPress: async () => {
-                     setIsLoading(true);
-                     console.log(`Attempting to delete image: ${item.image_url}`);
-                     try {
-                         const urlParts = item.image_url!.split('/item-images/');
-                         if (urlParts.length <= 1) throw new Error("Could not parse image path.");
-                         const filePath = decodeURIComponent(urlParts[1]);
-                         // 1. Remove from Storage
-                         const { error: storageError } = await supabase.storage.from('item-images').remove([filePath]);
-                         if (storageError) throw storageError;
-                         console.log(`Deleted image from storage: ${filePath}`);
-                         // 2. Update DB (set null)
-                         const { error: dbError } = await supabase.from('items').update({ image_url: null }).eq('id', id);
-                         if (dbError) {
-                             console.error('DB update failed after image deletion:', dbError);
-                             throw new Error(`Database update failed: ${dbError.message}. Image was deleted from storage, but DB link remains.`);
-                         }
-                         console.log(`Set image_url to null in DB for item ${id}.`);
-                         // 3. Update local state
-                         setItem((prev) => (prev ? { ...prev, image_url: null } : null));
-                         Alert.alert('Image Deleted', 'Item image removed successfully.');
-                     } catch (err: any) {
-                         console.error('Delete image error:', err);
-                         Alert.alert('Error', `Failed to delete image: ${err.message}`);
-                     } finally {
-                         setIsLoading(false);
-                     }
-                 },
-             },
-         ],
-         { cancelable: true },
-     );
+    if (!item?.image_url || !id)
+      return Alert.alert('No Image', 'There is no image to delete.');
+    Alert.alert(
+      'Delete Image Confirmation',
+      'Are you sure you want to delete the image for this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Image',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            console.log(`Attempting to delete image: ${item.image_url}`);
+            try {
+              const urlParts = item.image_url!.split('/item-images/');
+              if (urlParts.length <= 1)
+                throw new Error('Could not parse image path.');
+              const filePath = decodeURIComponent(urlParts[1]);
+              // 1. Remove from Storage
+              const { error: storageError } = await supabase.storage
+                .from('item-images')
+                .remove([filePath]);
+              if (storageError) throw storageError;
+              console.log(`Deleted image from storage: ${filePath}`);
+              // 2. Update DB (set null)
+              const { error: dbError } = await supabase
+                .from('items')
+                .update({ image_url: null })
+                .eq('id', id);
+              if (dbError) {
+                console.error(
+                  'DB update failed after image deletion:',
+                  dbError,
+                );
+                throw new Error(
+                  `Database update failed: ${dbError.message}. Image was deleted from storage, but DB link remains.`,
+                );
+              }
+              console.log(`Set image_url to null in DB for item ${id}.`);
+              // 3. Update local state
+              setItem((prev) => (prev ? { ...prev, image_url: null } : null));
+              Alert.alert('Image Deleted', 'Item image removed successfully.');
+            } catch (err: any) {
+              console.error('Delete image error:', err);
+              Alert.alert('Error', `Failed to delete image: ${err.message}`);
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
   };
 
   // --- Render Logic ---
@@ -575,9 +735,13 @@ export default function ItemScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         {/* Ensure text is inside Text component */}
-        <Text style={styles.errorText}>Item not found or could not be loaded.</Text>
+        <Text style={styles.errorText}>
+          Item not found or could not be loaded.
+        </Text>
         <TouchableOpacity
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/')
+          }
           style={styles.backButtonFallback}
         >
           <Text style={styles.backButtonFallbackText}>Go Back</Text>
@@ -592,7 +756,9 @@ export default function ItemScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/')
+          }
           style={styles.backButton}
           disabled={isLoading} // Keep disabled during background loading too
         >
@@ -655,25 +821,23 @@ export default function ItemScreen() {
               </View>
             )}
           </View>
-        ) : (
-          // No Image
-          isOwner && isEditing ? (
-            <TouchableOpacity
-              style={styles.addImageButton}
-              onPress={() => !isLoading && setImagePickerVisible(true)}
-              disabled={isLoading}
-            >
-              <View style={styles.iconTextContainer_vertical}>
-                <ImagePlus size={32} color="#0891b2" />
-                <Text style={styles.addImageText}>Add Image</Text>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.imagePlaceholderContainer}>
-              <ImagePlus size={40} color="#cbd5e1" />
-              <Text style={styles.placeholderText}>No Image Provided</Text>
+        ) : // No Image
+        isOwner && isEditing ? (
+          <TouchableOpacity
+            style={styles.addImageButton}
+            onPress={() => !isLoading && setImagePickerVisible(true)}
+            disabled={isLoading}
+          >
+            <View style={styles.iconTextContainer_vertical}>
+              <ImagePlus size={32} color="#0891b2" />
+              <Text style={styles.addImageText}>Add Image</Text>
             </View>
-          )
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.imagePlaceholderContainer}>
+            <ImagePlus size={40} color="#cbd5e1" />
+            <Text style={styles.placeholderText}>No Image Provided</Text>
+          </View>
         )}
 
         {/* Details Section */}
@@ -705,7 +869,9 @@ export default function ItemScreen() {
                 >
                   <View style={styles.iconTextContainer}>
                     <Trash2 size={20} color="#ef4444" />
-                    <Text style={[styles.headerActionText, { color: '#ef4444' }]}>
+                    <Text
+                      style={[styles.headerActionText, { color: '#ef4444' }]}
+                    >
                       Delete Item
                     </Text>
                   </View>
@@ -719,7 +885,9 @@ export default function ItemScreen() {
                   >
                     <View style={styles.iconTextContainer}>
                       <Flag size={20} color="#f97316" />
-                      <Text style={[styles.headerActionText, { color: '#f97316' }]}>
+                      <Text
+                        style={[styles.headerActionText, { color: '#f97316' }]}
+                      >
                         Report
                       </Text>
                     </View>
@@ -872,7 +1040,9 @@ export default function ItemScreen() {
                         >
                           <View style={styles.iconTextContainer}>
                             <Phone size={20} color="#0891b2" />
-                            <Text style={styles.contactButtonText}>Call Owner</Text>
+                            <Text style={styles.contactButtonText}>
+                              Call Owner
+                            </Text>
                           </View>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -894,7 +1064,9 @@ export default function ItemScreen() {
                         >
                           <View style={styles.iconTextContainer}>
                             <MessageSquare size={20} color="#0891b2" />
-                            <Text style={styles.contactButtonText}>Send SMS</Text>
+                            <Text style={styles.contactButtonText}>
+                              Send SMS
+                            </Text>
                           </View>
                         </TouchableOpacity>
                       </>
@@ -908,7 +1080,9 @@ export default function ItemScreen() {
                       >
                         <View style={styles.iconTextContainer}>
                           <Mail size={20} color="#0891b2" />
-                          <Text style={styles.contactButtonText}>Send Email</Text>
+                          <Text style={styles.contactButtonText}>
+                            Send Email
+                          </Text>
                         </View>
                       </TouchableOpacity>
                     )}
@@ -939,13 +1113,19 @@ export default function ItemScreen() {
           {/* Use View for content, not TouchableOpacity */}
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Image Source</Text>
-            <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleTakePhoto}
+            >
               <View style={styles.iconTextContainer}>
                 <Camera size={24} color="#0891b2" style={styles.modalIcon} />
                 <Text style={styles.modalOptionText}>Take Photo</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalOption} onPress={handleImagePick}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleImagePick}
+            >
               <View style={styles.iconTextContainer}>
                 <ImagePlus size={24} color="#0891b2" style={styles.modalIcon} />
                 <Text style={styles.modalOptionText}>Choose from Gallery</Text>
@@ -990,7 +1170,8 @@ export default function ItemScreen() {
                 <Text
                   style={[
                     styles.reasonButtonText,
-                    selectedReason === reason && styles.reasonButtonTextSelected,
+                    selectedReason === reason &&
+                      styles.reasonButtonTextSelected,
                   ]}
                 >
                   {reason}
@@ -1014,7 +1195,8 @@ export default function ItemScreen() {
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                (isSubmitting || !selectedReason) && styles.submitButtonDisabled,
+                (isSubmitting || !selectedReason) &&
+                  styles.submitButtonDisabled,
               ]}
               onPress={handleSubmitReport}
               disabled={isSubmitting || !selectedReason}
@@ -1030,7 +1212,9 @@ export default function ItemScreen() {
               disabled={isSubmitting}
               style={{ marginTop: 10 }}
             >
-              <Text style={[styles.cancelText, isSubmitting && styles.disabledText]}>
+              <Text
+                style={[styles.cancelText, isSubmitting && styles.disabledText]}
+              >
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -1039,12 +1223,13 @@ export default function ItemScreen() {
       </Modal>
 
       {/* --- Global Loading Indicator (Overlay for background tasks) --- */}
-      {isLoading && (item || isEditing) && ( // Show overlay during background loads AFTER initial item load or during edits
-         <View style={styles.loadingOverlay}>
-             <ActivityIndicator size="large" color="#ffffff" />
-             <Text style={styles.loadingOverlayText}>Processing...</Text>
-         </View>
-      )}
+      {isLoading &&
+        (item || isEditing) && ( // Show overlay during background loads AFTER initial item load or during edits
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingOverlayText}>Processing...</Text>
+          </View>
+        )}
     </View>
   );
 }
@@ -1188,7 +1373,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  addImageButton: {    
+  addImageButton: {
     backgroundColor: '#e0f7fe', // Lighter gray
     justifyContent: 'center',
     alignItems: 'center',
@@ -1201,7 +1386,8 @@ const styles = StyleSheet.create({
     borderColor: '#a5f3fc', // Cyan border
     borderStyle: 'dashed',
   },
-  addImageText: {borderRadius: 8,
+  addImageText: {
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#a5f3fc', // Cyan border
     borderStyle: 'dashed',
@@ -1431,21 +1617,24 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end', // Position modal at bottom
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalOverlay2: { // For center modal
+  modalOverlay2: {
+    // For center modal
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     padding: 20,
   },
-  modalContent: { // Bottom sheet style
+  modalContent: {
+    // Bottom sheet style
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20, // Safe area padding
   },
-  modalContainer2: { // Centered card style
+  modalContainer2: {
+    // Centered card style
     width: '100%',
     maxWidth: 400,
     backgroundColor: '#ffffff',
@@ -1453,7 +1642,8 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'stretch', // Stretch children horizontally
   },
-  modalTitle: { // Title for bottom sheet
+  modalTitle: {
+    // Title for bottom sheet
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
@@ -1461,14 +1651,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     color: '#1e293b',
   },
-  modalTitle2: { // Title for centered modal
+  modalTitle2: {
+    // Title for centered modal
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 15,
     color: '#1e293b',
   },
-  modalOption: { // Row option in bottom sheet
+  modalOption: {
+    // Row option in bottom sheet
     flexDirection: 'row', // Handled by iconTextContainer now, but keep for padding
     alignItems: 'center',
     paddingVertical: 15,
@@ -1551,7 +1743,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  cancelText: { // Report Modal Cancel
+  cancelText: {
+    // Report Modal Cancel
     marginTop: 15,
     textAlign: 'center',
     color: '#64748b', // Slate-500

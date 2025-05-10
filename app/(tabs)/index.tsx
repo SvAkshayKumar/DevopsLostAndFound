@@ -110,7 +110,9 @@ export default function HomeScreen() {
         </Text>
         <Text style={styles.itemMeta}>
           Posted by {item.user_email} •{' '}
-          {new Date(item.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
+          {new Date(item.created_at).toLocaleDateString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+          })}
         </Text>
       </View>
     </TouchableOpacity>

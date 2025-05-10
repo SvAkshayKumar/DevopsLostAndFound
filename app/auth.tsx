@@ -49,23 +49,23 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   // 2. Setup Android Channel (if needed)
   if (Platform.OS === 'android') {
     try {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
     } catch (e) {
-        console.error("Failed to set notification channel:", e);
-        // Decide if this is fatal - maybe not, proceed cautiously
+      console.error('Failed to set notification channel:', e);
+      // Decide if this is fatal - maybe not, proceed cautiously
     }
   }
 
   // 3. Check current permission status
-  console.log("Checking initial notification permissions...");
+  console.log('Checking initial notification permissions...');
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
-  console.log("Initial permission status:", finalStatus);
+  console.log('Initial permission status:', finalStatus);
 
   // 4. Request permission if not already granted
   if (finalStatus !== 'granted') {
@@ -87,7 +87,9 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   // 5. Handle the final permission status (SHOW ALERT IF STILL NOT GRANTED)
   if (finalStatus !== 'granted') {
-    console.log('Permission still not granted after first attempt. Showing custom alert.');
+    console.log(
+      'Permission still not granted after first attempt. Showing custom alert.',
+    );
     // Use a Promise to wait for the Alert interaction
     return new Promise<string | null>((resolve) => {
       Alert.alert(
@@ -97,45 +99,72 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
           {
             text: 'Allow',
             onPress: async () => {
-              console.log('User clicked "Allow" in custom alert. Re-attempting system permission request...');
+              console.log(
+                'User clicked "Allow" in custom alert. Re-attempting system permission request...',
+              );
               try {
                 // --- Direct Re-Request Logic ---
-                const { status: newStatus } = await Notifications.requestPermissionsAsync();
+                const { status: newStatus } =
+                  await Notifications.requestPermissionsAsync();
                 console.log('Second permission request status:', newStatus);
 
                 if (newStatus === 'granted') {
-                  console.log('Permission GRANTED on second attempt! Proceeding to get token...');
+                  console.log(
+                    'Permission GRANTED on second attempt! Proceeding to get token...',
+                  );
                   // Permission granted, now get the token
                   try {
                     const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
                     if (!projectId) {
-                      const message = "Expo Project ID not found. Ensure 'extra.eas.projectId' is set in your app.json or app.config.js.";
+                      const message =
+                        "Expo Project ID not found. Ensure 'extra.eas.projectId' is set in your app.json or app.config.js.";
                       console.warn(message);
                       Alert.alert('Configuration Error', message);
                       resolve(null); // Resolve null if config error prevents token fetch
                       return; // Exit onPress handler
                     }
 
-                    console.log('Requesting Expo Push Token after re-prompt with Project ID:', projectId);
-                    const expoPushToken = await Notifications.getExpoPushTokenAsync({ projectId });
+                    console.log(
+                      'Requesting Expo Push Token after re-prompt with Project ID:',
+                      projectId,
+                    );
+                    const expoPushToken =
+                      await Notifications.getExpoPushTokenAsync({ projectId });
                     token = expoPushToken.data;
-                    console.log('Expo Push Token obtained after re-prompt:', token);
+                    console.log(
+                      'Expo Push Token obtained after re-prompt:',
+                      token,
+                    );
                     resolve(token); // Resolve the promise with the obtained token
-
                   } catch (tokenError: any) {
-                    console.error('Failed to get Expo Push Token after re-prompt:', tokenError);
-                    Alert.alert('Token Error', `Permission granted, but failed to get push token: ${tokenError.message || tokenError}`);
+                    console.error(
+                      'Failed to get Expo Push Token after re-prompt:',
+                      tokenError,
+                    );
+                    Alert.alert(
+                      'Token Error',
+                      `Permission granted, but failed to get push token: ${tokenError.message || tokenError}`,
+                    );
                     resolve(null); // Resolve null as token fetching failed
                   }
                 } else {
                   // Permission still denied even after clicking "Allow" and seeing system prompt (or if prompt was blocked)
                   console.log('Permission still DENIED after second attempt.');
-                  Alert.alert('Notifications Still Disabled', 'Permission was not granted by the system. You can enable notifications later in your device settings if needed.');
+                  Alert.alert(
+                    'Notifications Still Disabled',
+                    'Permission was not granted by the system. You can enable notifications later in your device settings if needed.',
+                  );
                   resolve(null); // Resolve null as permission is definitively denied
                 }
               } catch (requestError: any) {
-                console.error('Error during the second permission request attempt:', requestError);
-                Alert.alert('Permission Error', `Failed to request permissions again: ${requestError.message || requestError}`);
+                console.error(
+                  'Error during the second permission request attempt:',
+                  requestError,
+                );
+                Alert.alert(
+                  'Permission Error',
+                  `Failed to request permissions again: ${requestError.message || requestError}`,
+                );
                 resolve(null); // Resolve null on error during the second request
               }
             },
@@ -145,28 +174,39 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
             style: 'cancel',
             onPress: () => {
               console.log('User clicked "Deny" in custom alert.');
-              Alert.alert('Notifications Disabled', 'You can enable notifications later in your device settings if you change your mind.');
+              Alert.alert(
+                'Notifications Disabled',
+                'You can enable notifications later in your device settings if you change your mind.',
+              );
               resolve(null); // Resolve with null as permission is denied
             },
           },
         ],
-        { cancelable: false } // Prevent dismissing the alert without choosing
+        { cancelable: false }, // Prevent dismissing the alert without choosing
       );
     }); // End of Promise wrapper for Alert
   }
 
   // 6. If permission WAS granted (either initially or after the first request)
-  console.log('Notification permission is granted. Proceeding to get token directly.');
+  console.log(
+    'Notification permission is granted. Proceeding to get token directly.',
+  );
   try {
     const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
-     if (!projectId) {
-         const message = "Expo Project ID not found. Ensure 'extra.eas.projectId' is set in your app.json or app.config.js.";
-         console.warn(message);
-         Alert.alert('Configuration Error', message);
-         return null; // Return null if config error
-     }
-    console.log('Requesting Expo Push Token (initial grant path) with Project ID:', projectId);
-    const expoPushToken = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!projectId) {
+      const message =
+        "Expo Project ID not found. Ensure 'extra.eas.projectId' is set in your app.json or app.config.js.";
+      console.warn(message);
+      Alert.alert('Configuration Error', message);
+      return null; // Return null if config error
+    }
+    console.log(
+      'Requesting Expo Push Token (initial grant path) with Project ID:',
+      projectId,
+    );
+    const expoPushToken = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
     token = expoPushToken.data;
     console.log('Expo Push Token obtained (initial grant path):', token);
   } catch (e: any) {
@@ -184,28 +224,38 @@ async function savePushToken(userId: string, token: string) {
     return;
   }
 
-  console.log(`Attempting to save/upsert token ${token} (associated with user ${userId}) into push_tokens table.`);
+  console.log(
+    `Attempting to save/upsert token ${token} (associated with user ${userId}) into push_tokens table.`,
+  );
   try {
-     // Upsert into push_tokens (public table, just store the token)
-     // Consider if you need a unique constraint on the token itself or if duplicates are okay
-     // (e.g., if a user uninstalls/reinstalls, they might get the same token).
-     // Let's assume a simple upsert is fine for now.
+    // Upsert into push_tokens (public table, just store the token)
+    // Consider if you need a unique constraint on the token itself or if duplicates are okay
+    // (e.g., if a user uninstalls/reinstalls, they might get the same token).
+    // Let's assume a simple upsert is fine for now.
     const { error: upsertError } = await supabase
       .from('push_tokens')
       .upsert({ push_token: token }, { onConflict: 'push_token' }); // Assuming 'push_token' is the primary key or has a unique constraint
 
     if (upsertError) {
-        // Don't throw an error if it's just a conflict (token already exists)
-        if (upsertError.code === '23505') { // Unique violation
-            console.log(`Token ${token} already exists in push_tokens. Proceeding to update profile.`);
-        } else {
-            // Log other unexpected errors during upsert
-            console.error(`Error upserting push token ${token} into push_tokens:`, upsertError);
-             // Decide if you want to stop the process here or still try to update the profile
-             // For robustness, maybe log the error but continue to profile update
-        }
+      // Don't throw an error if it's just a conflict (token already exists)
+      if (upsertError.code === '23505') {
+        // Unique violation
+        console.log(
+          `Token ${token} already exists in push_tokens. Proceeding to update profile.`,
+        );
+      } else {
+        // Log other unexpected errors during upsert
+        console.error(
+          `Error upserting push token ${token} into push_tokens:`,
+          upsertError,
+        );
+        // Decide if you want to stop the process here or still try to update the profile
+        // For robustness, maybe log the error but continue to profile update
+      }
     } else {
-        console.log(`Successfully upserted/found push token ${token} in push_tokens table.`);
+      console.log(
+        `Successfully upserted/found push token ${token} in push_tokens table.`,
+      );
     }
 
     // Now update the user's profile with this push token
@@ -216,14 +266,21 @@ async function savePushToken(userId: string, token: string) {
       .eq('id', userId);
 
     if (updateError) {
-      console.error(`Error updating push token in profiles table for user ${userId}:`, updateError);
+      console.error(
+        `Error updating push token in profiles table for user ${userId}:`,
+        updateError,
+      );
       // Consider alerting the user or logging this more prominently if critical
     } else {
-      console.log(`Successfully updated push token in profiles table for user ${userId}.`);
+      console.log(
+        `Successfully updated push token in profiles table for user ${userId}.`,
+      );
     }
-
   } catch (error: any) {
-    console.error('Unexpected error during push token saving operations:', error);
+    console.error(
+      'Unexpected error during push token saving operations:',
+      error,
+    );
     // Handle unexpected errors during the entire process
   }
 }
@@ -331,7 +388,8 @@ export default function AuthScreen() {
   };
 
   const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 6) { // Basic OTP format check
+    if (!otp || otp.length !== 6) {
+      // Basic OTP format check
       Alert.alert('Error', 'Please enter the 6-digit OTP');
       return;
     }
@@ -368,10 +426,13 @@ export default function AuthScreen() {
 
     if (isSignUp) {
       if (!fullName.trim()) return Alert.alert('Error', 'Full name required');
-      if (!validatePhoneNumber(phoneNumber)) return Alert.alert('Error', 'Valid 10-digit phone number required');
-      if (!otpVerified) return Alert.alert('Error', 'Please verify email first');
+      if (!validatePhoneNumber(phoneNumber))
+        return Alert.alert('Error', 'Valid 10-digit phone number required');
+      if (!otpVerified)
+        return Alert.alert('Error', 'Please verify email first');
       const allRequirementsMet = passwordRequirements.every((req) => req.met);
-      if (!allRequirementsMet) return Alert.alert('Error', 'Password requirements not met');
+      if (!allRequirementsMet)
+        return Alert.alert('Error', 'Password requirements not met');
       if (!acceptedTerms) return Alert.alert('Error', 'Please accept terms');
     }
 
@@ -381,12 +442,14 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         // 1. Create Auth User
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        const { data: authData, error: signUpError } =
+          await supabase.auth.signUp({
             email,
             password,
-        });
+          });
         if (signUpError) throw signUpError;
-        if (!authData.user) throw new Error("Sign up succeeded but no user data returned.");
+        if (!authData.user)
+          throw new Error('Sign up succeeded but no user data returned.');
 
         userId = authData.user.id; // Get user ID
 
@@ -396,16 +459,17 @@ export default function AuthScreen() {
           email: email.toLowerCase(),
           full_name: fullName.trim(),
           phone_number: phoneNumber,
-          updated_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-
+          updated_at: new Date().toLocaleString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+          }),
         });
         if (profileError) throw profileError; // Throw if profile creation fails
 
         // 3. Register for Push Notifications and Save Token (async, don't block UI)
-        registerForPushNotificationsAsync().then(token => {
-            if (token && userId) {
-                savePushToken(userId, token);
-            }
+        registerForPushNotificationsAsync().then((token) => {
+          if (token && userId) {
+            savePushToken(userId, token);
+          }
         });
 
         // 4. Success feedback and switch to sign-in
@@ -419,32 +483,38 @@ export default function AuthScreen() {
         setOtpSent(false);
         setOtpVerified(false);
         setAcceptedTerms(false);
-
       } else {
         // Sign In Flow
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
         if (signInError) throw signInError;
-        if (!signInData.session?.user) throw new Error("Sign in succeeded but no session/user data.");
+        if (!signInData.session?.user)
+          throw new Error('Sign in succeeded but no session/user data.');
 
         userId = signInData.session.user.id; // Get user ID
 
         // 2. Register for Push Notifications and Save Token (async, don't block UI)
-         registerForPushNotificationsAsync().then(token => {
-            if (token && userId) {
-                savePushToken(userId, token);
-            }
-         });
+        registerForPushNotificationsAsync().then((token) => {
+          if (token && userId) {
+            savePushToken(userId, token);
+          }
+        });
 
         // 3. Navigate to home (handled by _layout.tsx's redirect)
         // router.replace('/'); // This is now redundant due to _layout.tsx logic
-        console.log('Sign in successful, navigation will be handled by layout.');
+        console.log(
+          'Sign in successful, navigation will be handled by layout.',
+        );
       }
     } catch (error: any) {
-      console.log("Auth Error:", error);
-      Alert.alert('Authentication Error', error.message || 'An unexpected error occurred.');
+      console.log('Auth Error:', error);
+      Alert.alert(
+        'Authentication Error',
+        error.message || 'An unexpected error occurred.',
+      );
     } finally {
       setLoading(false);
     }
@@ -478,19 +548,23 @@ export default function AuthScreen() {
     setResendDisabled(false);
     setCountdown(30);
     // Reset password requirements visual state
-    setPasswordRequirements(prev => prev.map(req => ({ ...req, met: false })));
+    setPasswordRequirements((prev) =>
+      prev.map((req) => ({ ...req, met: false })),
+    );
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.header}>
         <Text style={styles.title}>
           {isSignUp ? 'Create Account' : 'Welcome Back'}
         </Text>
         <Text style={styles.subtitle}>
-          {isSignUp
-            ? 'Sign up with your RVU email'
-            : 'Sign in to continue'}
+          {isSignUp ? 'Sign up with your RVU email' : 'Sign in to continue'}
         </Text>
       </View>
 
@@ -546,8 +620,12 @@ export default function AuthScreen() {
         {isSignUp && !otpVerified && (
           <View style={styles.otpSection}>
             {!otpSent ? (
-               <TouchableOpacity
-                style={[styles.actionButton, styles.verifyButton, (loading || !validateEmail(email)) && styles.buttonDisabled]}
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  styles.verifyButton,
+                  (loading || !validateEmail(email)) && styles.buttonDisabled,
+                ]}
                 onPress={handleGenerateOTP}
                 disabled={loading || !validateEmail(email)}
               >
@@ -558,26 +636,38 @@ export default function AuthScreen() {
             ) : (
               <>
                 <View style={styles.inputContainer}>
-                    {/* Maybe add an icon for OTP */}
-                   <TextInput
-                      style={styles.input}
-                      placeholder="Enter 6-digit OTP"
-                      value={otp}
-                      onChangeText={setOtp}
-                      keyboardType="numeric"
-                      maxLength={6}
-                    />
+                  {/* Maybe add an icon for OTP */}
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter 6-digit OTP"
+                    value={otp}
+                    onChangeText={setOtp}
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
                 </View>
                 <View style={styles.otpActions}>
                   <TouchableOpacity
-                    style={[styles.actionButton, styles.otpButton, (loading || otp.length !== 6) && styles.buttonDisabled]}
+                    style={[
+                      styles.actionButton,
+                      styles.otpButton,
+                      (loading || otp.length !== 6) && styles.buttonDisabled,
+                    ]}
                     onPress={handleVerifyOTP}
                     disabled={loading || otp.length !== 6}
                   >
-                     {loading && !resendDisabled ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.actionButtonText}>Verify OTP</Text>}
+                    {loading && !resendDisabled ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>Verify OTP</Text>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.actionButton, styles.otpButton, (resendDisabled || loading) && styles.buttonDisabled]}
+                    style={[
+                      styles.actionButton,
+                      styles.otpButton,
+                      (resendDisabled || loading) && styles.buttonDisabled,
+                    ]}
                     onPress={handleGenerateOTP} // Re-uses generate function
                     disabled={resendDisabled || loading}
                   >
@@ -590,9 +680,9 @@ export default function AuthScreen() {
             )}
           </View>
         )}
-         {isSignUp && otpVerified && (
-            <Text style={styles.verifiedText}>✓ Email Verified</Text>
-         )}
+        {isSignUp && otpVerified && (
+          <Text style={styles.verifiedText}>✓ Email Verified</Text>
+        )}
 
         {/* --- Password Field --- */}
         <View style={styles.inputContainer}>
@@ -603,7 +693,7 @@ export default function AuthScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
-            textContentType={isSignUp ? "newPassword" : "password"}
+            textContentType={isSignUp ? 'newPassword' : 'password'}
             editable={!loading}
           />
           <TouchableOpacity
@@ -685,10 +775,21 @@ export default function AuthScreen() {
           style={[
             styles.button,
             // Disable logic: loading OR (is SignUp AND (!otpVerified OR !allPassReqsMet OR !acceptedTerms))
-            (loading || (isSignUp && (!otpVerified || !passwordRequirements.every(req => req.met) || !acceptedTerms))) && styles.buttonDisabled,
+            (loading ||
+              (isSignUp &&
+                (!otpVerified ||
+                  !passwordRequirements.every((req) => req.met) ||
+                  !acceptedTerms))) &&
+              styles.buttonDisabled,
           ]}
           onPress={handleAuth}
-          disabled={loading || (isSignUp && (!otpVerified || !passwordRequirements.every(req => req.met) || !acceptedTerms))}
+          disabled={
+            loading ||
+            (isSignUp &&
+              (!otpVerified ||
+                !passwordRequirements.every((req) => req.met) ||
+                !acceptedTerms))
+          }
         >
           {loading ? (
             <ActivityIndicator size="small" color="#ffffff" />
@@ -787,10 +888,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1e293b',
   },
-   inputDisabled: {
-     backgroundColor: '#e2e8f0', // Grey out background when disabled
-     color: '#64748b', // Dim text color
-   },
+  inputDisabled: {
+    backgroundColor: '#e2e8f0', // Grey out background when disabled
+    color: '#64748b', // Dim text color
+  },
   eyeIcon: {
     padding: 8,
   },
@@ -802,7 +903,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8, // Add space above buttons
   },
-  actionButton: { // Common style for verify/otp buttons
+  actionButton: {
+    // Common style for verify/otp buttons
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -815,7 +917,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  verifyButton: { // Specific style if needed
+  verifyButton: {
+    // Specific style if needed
     // width: '100%', // Make Verify Email full width initially
   },
   otpButton: {
@@ -875,8 +978,8 @@ const styles = StyleSheet.create({
     // Add a checkmark icon inside if desired (using an Icon component)
   },
   checkboxDisabled: {
-     backgroundColor: '#e2e8f0',
-     borderColor: '#cbd5e1',
+    backgroundColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
   },
   termsTextContainer: {
     flex: 1,

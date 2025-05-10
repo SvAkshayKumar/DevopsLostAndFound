@@ -53,9 +53,10 @@ export default function ResetPasswordModal({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Added for confirm field
   const [loading, setLoading] = useState(false);
-  const [currentPasswordRequirements, setCurrentPasswordRequirements] = useState<PasswordRequirement[]>(
-    passwordRequirementsInitial.map(req => ({ ...req, met: false })) // Initialize met state
-  );
+  const [currentPasswordRequirements, setCurrentPasswordRequirements] =
+    useState<PasswordRequirement[]>(
+      passwordRequirementsInitial.map((req) => ({ ...req, met: false })), // Initialize met state
+    );
   const [errorMessage, setErrorMessage] = useState<string | null>(null); // For specific error messages
   const [successMessage, setSuccessMessage] = useState<string | null>(null); // For success messages
 
@@ -73,7 +74,7 @@ export default function ResetPasswordModal({
     setShowConfirmPassword(false);
     setLoading(false); // Ensure loading is reset
     setCurrentPasswordRequirements(
-        passwordRequirementsInitial.map(req => ({ ...req, met: false }))
+      passwordRequirementsInitial.map((req) => ({ ...req, met: false })),
     );
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -81,9 +82,10 @@ export default function ResetPasswordModal({
 
   // --- Handle Close (Keep as is) ---
   const handleClose = () => {
-    if (!loading) { // Prevent closing while loading
-        onClose();
-        resetPasswordStates(); // Reset state when closing
+    if (!loading) {
+      // Prevent closing while loading
+      onClose();
+      resetPasswordStates(); // Reset state when closing
     }
   };
 
@@ -108,15 +110,16 @@ export default function ResetPasswordModal({
   }, [resetResendDisabled, resetCountdown]);
 
   // --- Password Requirements Check Effect ---
-   useEffect(() => {
-     if (resetOtpVerified) { // Only check when in the password entry phase
-         const updatedRequirements = currentPasswordRequirements.map((req) => ({
-             ...req,
-             met: req.regex.test(newPassword),
-         }));
-         setCurrentPasswordRequirements(updatedRequirements);
-     }
-   }, [newPassword, resetOtpVerified]); // Re-run when newPassword or step changes
+  useEffect(() => {
+    if (resetOtpVerified) {
+      // Only check when in the password entry phase
+      const updatedRequirements = currentPasswordRequirements.map((req) => ({
+        ...req,
+        met: req.regex.test(newPassword),
+      }));
+      setCurrentPasswordRequirements(updatedRequirements);
+    }
+  }, [newPassword, resetOtpVerified]); // Re-run when newPassword or step changes
 
   // --- Generate OTP (Keep as is, add error/success state updates) ---
   const handleGenerateOTP = async () => {
@@ -129,7 +132,7 @@ export default function ResetPasswordModal({
 
     setLoading(true);
     setResetResendDisabled(true); // Disable immediately
-    setResetCountdown(30);      // Start countdown immediately
+    setResetCountdown(30); // Start countdown immediately
 
     try {
       const response = await fetch(
@@ -143,21 +146,20 @@ export default function ResetPasswordModal({
             organization: 'RVU Lost & Found - Password Reset', // Be specific
             subject: 'Password Reset OTP Verification',
           }),
-        }
+        },
       );
 
       if (!response.ok) {
-           const errorData = await response.json().catch(() => ({})); // Try to get error details
-           console.log("OTP Generation Error:", errorData);
-           throw new Error(errorData.message || 'Failed to send OTP');
+        const errorData = await response.json().catch(() => ({})); // Try to get error details
+        console.log('OTP Generation Error:', errorData);
+        throw new Error(errorData.message || 'Failed to send OTP');
       }
 
       setResetOtpSent(true);
       setSuccessMessage('OTP has been sent to your email.'); // Use success state
       // Alert.alert('Success', 'OTP has been sent to your email'); // Can remove Alert
-
     } catch (error: any) {
-      console.log("Error sending OTP:", error);
+      console.log('Error sending OTP:', error);
       setErrorMessage(error.message || 'Failed to send OTP. Please try again.'); // Use error state
       // Alert.alert('Error', 'Failed to send OTP. Please try again.'); // Can remove Alert
       setResetResendDisabled(false); // Re-enable button on error
@@ -171,7 +173,8 @@ export default function ResetPasswordModal({
   const handleVerifyOTP = async () => {
     setErrorMessage(null); // Clear previous errors
     setSuccessMessage(null);
-    if (!resetOtp || resetOtp.length !== 6) { // Basic OTP format check
+    if (!resetOtp || resetOtp.length !== 6) {
+      // Basic OTP format check
       setErrorMessage('Please enter the 6-digit OTP');
       return;
     }
@@ -184,21 +187,23 @@ export default function ResetPasswordModal({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: resetEmail, otp: resetOtp }),
-        }
+        },
       );
 
-       if (!response.ok) {
-           const errorData = await response.json().catch(() => ({})); // Try to get error details
-           console.log("OTP Verification Error:", errorData);
-           throw new Error(errorData.message || 'Invalid or expired OTP');
-       }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})); // Try to get error details
+        console.log('OTP Verification Error:', errorData);
+        throw new Error(errorData.message || 'Invalid or expired OTP');
+      }
 
       setResetOtpVerified(true);
-      setSuccessMessage('Email verified successfully. Please enter your new password.'); // Use success state
+      setSuccessMessage(
+        'Email verified successfully. Please enter your new password.',
+      ); // Use success state
       // Alert.alert('Success', 'Email verified successfully'); // Can remove Alert
     } catch (error: any) {
-        console.log("Error verifying OTP:", error);
-        setErrorMessage(error.message || 'Invalid OTP. Please try again.'); // Use error state
+      console.log('Error verifying OTP:', error);
+      setErrorMessage(error.message || 'Invalid OTP. Please try again.'); // Use error state
       // Alert.alert('Error', 'Invalid OTP. Please try again.'); // Can remove Alert
     } finally {
       setLoading(false);
@@ -206,77 +211,82 @@ export default function ResetPasswordModal({
   };
 
   // --- Reset Password (Ensure parameter order matches definition) ---
-const handleResetPassword = async () => {
-  // ... (previous checks remain the same) ...
+  const handleResetPassword = async () => {
+    // ... (previous checks remain the same) ...
 
-  setLoading(true);
-  try {
-    // 1. Get User ID (remains the same)
-    const { data: userId, error: rpcError } = await supabase.rpc(
-      'get_user_id_by_email',
-      { user_email: resetEmail }
-    );
+    setLoading(true);
+    try {
+      // 1. Get User ID (remains the same)
+      const { data: userId, error: rpcError } = await supabase.rpc(
+        'get_user_id_by_email',
+        { user_email: resetEmail },
+      );
 
-    if (rpcError) {
-      console.log('RPC Error getting user ID:', rpcError);
-      throw new Error('An error occurred while verifying user information.');
-    }
-    if (!userId) {
-      console.warn('User ID not found for email:', resetEmail);
-      throw new Error('Could not find user associated with this email.'); // Keep this specific error
-    }
-
-    // 2. Call update password function - *Ensure object order matches function definition*
-    const { data: updateSuccessful, error: updateError } = await supabase.rpc(
-      'update_password_by_user_id',
-      {
-        // Match definition: target_user_id uuid, new_password text
-        target_user_id: userId, // First argument in definition
-        new_password: newPassword, // Second argument in definition
+      if (rpcError) {
+        console.log('RPC Error getting user ID:', rpcError);
+        throw new Error('An error occurred while verifying user information.');
       }
-    );
+      if (!userId) {
+        console.warn('User ID not found for email:', resetEmail);
+        throw new Error('Could not find user associated with this email.'); // Keep this specific error
+      }
 
-    if (updateError) {
-      console.log('RPC Error updating password:', updateError);
-      // Log the raw error to see the details again if needed
-      console.log('Raw Update Error:', JSON.stringify(updateError));
-      // Use the message from the error object if available
-      throw new Error(updateError.message || 'Failed to update password via RPC.');
-    }
+      // 2. Call update password function - *Ensure object order matches function definition*
+      const { data: updateSuccessful, error: updateError } = await supabase.rpc(
+        'update_password_by_user_id',
+        {
+          // Match definition: target_user_id uuid, new_password text
+          target_user_id: userId, // First argument in definition
+          new_password: newPassword, // Second argument in definition
+        },
+      );
 
-    if (updateSuccessful === true) {
-      setSuccessMessage('Password updated successfully!');
-      try{
-        const { error } = await supabase.auth.signOut({ scope: 'global' });
-      
-        if (error) {
-          throw error;
-        }
-        Alert.alert(
-          'Password Changed Successfully',
-          'You have been signed out from all the devices. Please log in again on this device to continue.',
-          [{ text: 'OK' }]
+      if (updateError) {
+        console.log('RPC Error updating password:', updateError);
+        // Log the raw error to see the details again if needed
+        console.log('Raw Update Error:', JSON.stringify(updateError));
+        // Use the message from the error object if available
+        throw new Error(
+          updateError.message || 'Failed to update password via RPC.',
         );
       }
-      catch (error) {
-        Alert.alert('Error', 'Failed to sign out of all device');
-      }
-      setTimeout(() => {
-          handleClose();
-      }, 2000);
-    } else {
-      console.warn('Update password function returned false for user:', userId);
-      // This likely means the user ID became invalid between check and update, or internal error
-      throw new Error('Failed to update password. Please try again or contact support.');
-    }
 
-  } catch (error: any) {
-    console.log('Error during password reset process:', error);
-    setErrorMessage(error.message || 'An unexpected error occurred.');
-  } finally {
-    setLoading(false);
-  }
-};
+      if (updateSuccessful === true) {
+        setSuccessMessage('Password updated successfully!');
+        try {
+          const { error } = await supabase.auth.signOut({ scope: 'global' });
+
+          if (error) {
+            throw error;
+          }
+          Alert.alert(
+            'Password Changed Successfully',
+            'You have been signed out from all the devices. Please log in again on this device to continue.',
+            [{ text: 'OK' }],
+          );
+        } catch (error) {
+          Alert.alert('Error', 'Failed to sign out of all device');
+        }
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
+      } else {
+        console.warn(
+          'Update password function returned false for user:',
+          userId,
+        );
+        // This likely means the user ID became invalid between check and update, or internal error
+        throw new Error(
+          'Failed to update password. Please try again or contact support.',
+        );
+      }
+    } catch (error: any) {
+      console.log('Error during password reset process:', error);
+      setErrorMessage(error.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Render Logic ---
   return (
@@ -288,161 +298,224 @@ const handleResetPassword = async () => {
     >
       <View style={styles.modalOverlay}>
         {/* Use ScrollView to prevent content overflow */}
-        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Reset Password</Text>
-                    <TouchableOpacity onPress={handleClose} style={styles.closeButton} disabled={loading}>
-                    <X size={24} color="#64748b" />
-                    </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reset Password</Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+                disabled={loading}
+              >
+                <X size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Error and Success Message Display */}
+            {errorMessage && (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            )}
+            {successMessage && !resetOtpVerified && (
+              <Text style={styles.successText}>{successMessage}</Text>
+            )}
+
+            {/* --- Step 1 & 2: Email and OTP --- */}
+            {!resetOtpVerified ? (
+              <>
+                <View style={styles.inputContainer}>
+                  <Mail size={20} color="#64748b" style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, resetOtpSent && styles.inputDisabled]} // Disable visually if OTP sent
+                    placeholder="RVU Email (@rvu.edu.in)"
+                    value={resetEmail}
+                    onChangeText={setResetEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!resetOtpSent && !loading} // Disable editing if OTP sent or loading
+                  />
                 </View>
 
-                {/* Error and Success Message Display */}
-                {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-                {successMessage && !resetOtpVerified && <Text style={styles.successText}>{successMessage}</Text>}
-
-                {/* --- Step 1 & 2: Email and OTP --- */}
-                {!resetOtpVerified ? (
-                    <>
+                {resetOtpSent ? (
+                  <>
                     <View style={styles.inputContainer}>
-                        <Mail size={20} color="#64748b" style={styles.inputIcon} />
-                        <TextInput
-                        style={[styles.input, resetOtpSent && styles.inputDisabled]} // Disable visually if OTP sent
-                        placeholder="RVU Email (@rvu.edu.in)"
-                        value={resetEmail}
-                        onChangeText={setResetEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        editable={!resetOtpSent && !loading} // Disable editing if OTP sent or loading
-                        />
-                    </View>
-
-                    {resetOtpSent ? (
-                        <>
-                        <View style={styles.inputContainer}>
-                            {/* Add OTP icon? Maybe KeyRound */}
-                            <TextInput
-                            style={[styles.input, loading && styles.inputDisabled]}
-                            placeholder="Enter 6-digit OTP"
-                            value={resetOtp}
-                            onChangeText={setResetOtp}
-                            keyboardType="numeric"
-                            maxLength={6}
-                            editable={!loading}
-                            />
-                        </View>
-                        <View style={styles.otpActions}>
-                            <TouchableOpacity
-                            style={[ styles.otpButton, (loading || resetOtp.length !== 6) && styles.buttonDisabled ]}
-                            onPress={handleVerifyOTP}
-                            disabled={loading || resetOtp.length !== 6}
-                            >
-                             {loading && !resetResendDisabled ? <ActivityIndicator size="small" color="#ffffff"/> : <Text style={styles.otpButtonText}>Verify OTP</Text>}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                            style={[ styles.otpButton, (resetResendDisabled || loading) && styles.buttonDisabled ]}
-                            onPress={handleGenerateOTP}
-                            disabled={resetResendDisabled || loading}
-                            >
-                            <Text style={styles.otpButtonText}>
-                                {resetResendDisabled ? `Resend (${resetCountdown}s)` : 'Resend OTP'}
-                            </Text>
-                            </TouchableOpacity>
-                        </View>
-                        </>
-                    ) : (
-                        <TouchableOpacity
-                        style={[styles.button, (loading || !validateEmail(resetEmail)) && styles.buttonDisabled]}
-                        onPress={handleGenerateOTP}
-                        disabled={loading || !validateEmail(resetEmail)}
-                        >
-                        {loading ? <ActivityIndicator size="small" color="#ffffff"/> : <Text style={styles.buttonText}>Send OTP</Text>}
-                        </TouchableOpacity>
-                    )}
-                    </>
-                ) : (
-                    /* --- Step 3: New Password --- */
-                    <>
-                     {/* Show final success/error messages here too */}
-                     {successMessage && <Text style={styles.successText}>{successMessage}</Text>}
-                     {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-                     {/* Display confirmation of verification */}
-                     <View style={styles.verifiedContainer}>
-                        <CheckCircle size={18} color="#10b981" />
-                        <Text style={styles.verifiedText}> Email Verified</Text>
-                     </View>
-
-                    <View style={styles.inputContainer}>
-                        <Lock size={20} color="#64748b" style={styles.inputIcon} />
-                        <TextInput
-                        style={styles.input}
-                        placeholder="New Password"
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                        secureTextEntry={!showPassword}
+                      {/* Add OTP icon? Maybe KeyRound */}
+                      <TextInput
+                        style={[styles.input, loading && styles.inputDisabled]}
+                        placeholder="Enter 6-digit OTP"
+                        value={resetOtp}
+                        onChangeText={setResetOtp}
+                        keyboardType="numeric"
+                        maxLength={6}
                         editable={!loading}
-                        />
-                        <TouchableOpacity
-                        onPress={() => setShowPassword(!showPassword)}
-                        style={styles.eyeIcon}
-                        disabled={loading}
-                        >
-                        {showPassword ? (
-                            <EyeOff size={20} color="#64748b" />
+                      />
+                    </View>
+                    <View style={styles.otpActions}>
+                      <TouchableOpacity
+                        style={[
+                          styles.otpButton,
+                          (loading || resetOtp.length !== 6) &&
+                            styles.buttonDisabled,
+                        ]}
+                        onPress={handleVerifyOTP}
+                        disabled={loading || resetOtp.length !== 6}
+                      >
+                        {loading && !resetResendDisabled ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
                         ) : (
-                            <Eye size={20} color="#64748b" />
+                          <Text style={styles.otpButtonText}>Verify OTP</Text>
                         )}
-                        </TouchableOpacity>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.otpButton,
+                          (resetResendDisabled || loading) &&
+                            styles.buttonDisabled,
+                        ]}
+                        onPress={handleGenerateOTP}
+                        disabled={resetResendDisabled || loading}
+                      >
+                        <Text style={styles.otpButtonText}>
+                          {resetResendDisabled
+                            ? `Resend (${resetCountdown}s)`
+                            : 'Resend OTP'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-
-                    <View style={styles.inputContainer}>
-                        <Lock size={20} color="#64748b" style={styles.inputIcon} />
-                        <TextInput
-                        style={styles.input}
-                        placeholder="Confirm New Password"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry={!showConfirmPassword} // Use separate state
-                        editable={!loading}
-                        />
-                         <TouchableOpacity
-                            onPress={() => setShowConfirmPassword(!showConfirmPassword)} // Use separate state handler
-                            style={styles.eyeIcon}
-                            disabled={loading}
-                            >
-                            {showConfirmPassword ? ( // Use separate state
-                                <EyeOff size={20} color="#64748b" />
-                            ) : (
-                                <Eye size={20} color="#64748b" />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Password Requirements */}
-                    <View style={styles.requirements}>
-                        {/* <Text style={styles.requirementsTitle}>Requirements:</Text> */}
-                        {currentPasswordRequirements.map((req, index) => (
-                        <View key={index} style={styles.requirementItem}>
-                            <View style={[ styles.requirementDot, { backgroundColor: req.met ? '#10b981' : '#94a3b8' }]} />
-                            <Text style={[ styles.requirementText, { color: req.met ? '#10b981' : '#475569' } ]}>
-                            {req.label}
-                            </Text>
-                        </View>
-                        ))}
-                    </View>
-
-                    {/* Final Update Button */}
-                    <TouchableOpacity
-                        style={[styles.button, (loading || !newPassword || newPassword !== confirmPassword || !currentPasswordRequirements.every(req => req.met)) && styles.buttonDisabled]}
-                        onPress={handleResetPassword}
-                        disabled={loading || !newPassword || newPassword !== confirmPassword || !currentPasswordRequirements.every(req => req.met)}
-                    >
-                        {loading ? <ActivityIndicator size="small" color="#ffffff"/> : <Text style={styles.buttonText}>Update Password</Text>}
-                    </TouchableOpacity>
-                    </>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      (loading || !validateEmail(resetEmail)) &&
+                        styles.buttonDisabled,
+                    ]}
+                    onPress={handleGenerateOTP}
+                    disabled={loading || !validateEmail(resetEmail)}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.buttonText}>Send OTP</Text>
+                    )}
+                  </TouchableOpacity>
                 )}
-            </View>
+              </>
+            ) : (
+              /* --- Step 3: New Password --- */
+              <>
+                {/* Show final success/error messages here too */}
+                {successMessage && (
+                  <Text style={styles.successText}>{successMessage}</Text>
+                )}
+                {errorMessage && (
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                )}
+
+                {/* Display confirmation of verification */}
+                <View style={styles.verifiedContainer}>
+                  <CheckCircle size={18} color="#10b981" />
+                  <Text style={styles.verifiedText}> Email Verified</Text>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Lock size={20} color="#64748b" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showPassword}
+                    editable={!loading}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeIcon}
+                    disabled={loading}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color="#64748b" />
+                    ) : (
+                      <Eye size={20} color="#64748b" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Lock size={20} color="#64748b" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword} // Use separate state
+                    editable={!loading}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)} // Use separate state handler
+                    style={styles.eyeIcon}
+                    disabled={loading}
+                  >
+                    {showConfirmPassword ? ( // Use separate state
+                      <EyeOff size={20} color="#64748b" />
+                    ) : (
+                      <Eye size={20} color="#64748b" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Password Requirements */}
+                <View style={styles.requirements}>
+                  {/* <Text style={styles.requirementsTitle}>Requirements:</Text> */}
+                  {currentPasswordRequirements.map((req, index) => (
+                    <View key={index} style={styles.requirementItem}>
+                      <View
+                        style={[
+                          styles.requirementDot,
+                          { backgroundColor: req.met ? '#10b981' : '#94a3b8' },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.requirementText,
+                          { color: req.met ? '#10b981' : '#475569' },
+                        ]}
+                      >
+                        {req.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Final Update Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    (loading ||
+                      !newPassword ||
+                      newPassword !== confirmPassword ||
+                      !currentPasswordRequirements.every((req) => req.met)) &&
+                      styles.buttonDisabled,
+                  ]}
+                  onPress={handleResetPassword}
+                  disabled={
+                    loading ||
+                    !newPassword ||
+                    newPassword !== confirmPassword ||
+                    !currentPasswordRequirements.every((req) => req.met)
+                  }
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Update Password</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -527,7 +600,8 @@ const styles = StyleSheet.create({
     marginBottom: 20, // More space below reqs
     paddingLeft: 4,
   },
-  requirementsTitle: { // Kept if needed, but commented out in JSX
+  requirementsTitle: {
+    // Kept if needed, but commented out in JSX
     fontSize: 14,
     fontWeight: '600',
     color: '#64748b',
@@ -604,19 +678,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontWeight: '500',
   },
-   verifiedContainer: {
-       flexDirection: 'row',
-       alignItems: 'center',
-       justifyContent: 'center',
-       marginBottom: 16,
-       paddingVertical: 8,
-       // backgroundColor: '#ecfdf5', // Optional light green background
-       // borderRadius: 8,
-   },
-   verifiedText: {
-       color: '#10b981', // Green color for success text
-       fontWeight: '600',
-       fontSize: 15,
-       marginLeft: 6,
-   },
+  verifiedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    paddingVertical: 8,
+    // backgroundColor: '#ecfdf5', // Optional light green background
+    // borderRadius: 8,
+  },
+  verifiedText: {
+    color: '#10b981', // Green color for success text
+    fontWeight: '600',
+    fontSize: 15,
+    marginLeft: 6,
+  },
 });

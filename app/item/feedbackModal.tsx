@@ -16,7 +16,8 @@ import { supabase } from '@/lib/supabase'; // Ensure path is correct
 interface FeedbackModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onSubmit: (feedback: { // Callback confirms submission success
+  onSubmit: (feedback: {
+    // Callback confirms submission success
     helperName: string;
     rating: number;
     experience: string;
@@ -50,19 +51,24 @@ export default function FeedbackModal({
   const handleSubmit = async () => {
     // Basic validation
     if (!helperName.trim()) {
-       Alert.alert('Input Required', `Please enter the ${type === 'lost' ? "helper's" : "owner's"} name.`);
-       return;
+      Alert.alert(
+        'Input Required',
+        `Please enter the ${type === 'lost' ? "helper's" : "owner's"} name.`,
+      );
+      return;
     }
-     if (rating === 0) {
-        Alert.alert('Rating Required', 'Please select a star rating.');
-        return;
-     }
-     if (!itemId) {
-        console.error('Error: itemId is missing in FeedbackModal');
-        Alert.alert('Error', 'Cannot submit feedback. Item information is missing.');
-        return;
-     }
-
+    if (rating === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+    if (!itemId) {
+      console.error('Error: itemId is missing in FeedbackModal');
+      Alert.alert(
+        'Error',
+        'Cannot submit feedback. Item information is missing.',
+      );
+      return;
+    }
 
     Keyboard.dismiss(); // Dismiss keyboard before submitting
     setIsSubmitting(true);
@@ -79,23 +85,28 @@ export default function FeedbackModal({
     try {
       // Check if feedback for this item already exists (optional but good practice)
       const { data: existingFeedback, error: checkError } = await supabase
-          .from('feedback')
-          .select('id')
-          .eq('item_id', itemId)
-          .limit(1); // Just need to know if any exists
+        .from('feedback')
+        .select('id')
+        .eq('item_id', itemId)
+        .limit(1); // Just need to know if any exists
 
       if (checkError) {
-          console.warn("Could not check for existing feedback:", checkError.message);
-          // Decide if you want to proceed anyway or throw error
+        console.warn(
+          'Could not check for existing feedback:',
+          checkError.message,
+        );
+        // Decide if you want to proceed anyway or throw error
       }
 
       if (existingFeedback && existingFeedback.length > 0) {
-           Alert.alert("Already Submitted", "Feedback for this item has already been submitted.");
-           setIsSubmitting(false);
-           onClose(); // Close the modal
-           return; // Stop submission
-       }
-
+        Alert.alert(
+          'Already Submitted',
+          'Feedback for this item has already been submitted.',
+        );
+        setIsSubmitting(false);
+        onClose(); // Close the modal
+        return; // Stop submission
+      }
 
       // Insert new feedback
       const { error: insertError } = await supabase
@@ -105,7 +116,9 @@ export default function FeedbackModal({
       if (insertError) {
         console.error('Supabase insert error:', insertError);
         // Provide more specific error message if possible
-        throw new Error(insertError.message || 'Failed to save feedback to the database.');
+        throw new Error(
+          insertError.message || 'Failed to save feedback to the database.',
+        );
       }
 
       console.log('Feedback saved successfully for item:', itemId);
@@ -122,109 +135,140 @@ export default function FeedbackModal({
       Alert.alert('Success', 'Feedback submitted successfully!');
       // No need to reset state here, useEffect handles it on next open
       // No need to call onClose here, onSubmit should trigger ProfileScreen to close it if needed
-
     } catch (error: any) {
       console.error('Error submitting feedback:', error);
-      Alert.alert('Submission Error', error.message || 'Could not submit feedback. Please try again.');
+      Alert.alert(
+        'Submission Error',
+        error.message || 'Could not submit feedback. Please try again.',
+      );
     } finally {
       setIsSubmitting(false); // Always turn off loading indicator
     }
   };
 
   // Render nothing if not visible or no item ID
-   if (!isVisible || !itemId) {
-      return null;
-   }
+  if (!isVisible || !itemId) {
+    return null;
+  }
 
   return (
     <Modal
       visible={isVisible}
       transparent={true}
       animationType="fade"
-      onRequestClose={() => { if (!isSubmitting) onClose(); }} // Prevent closing while submitting
+      onRequestClose={() => {
+        if (!isSubmitting) onClose();
+      }} // Prevent closing while submitting
     >
       <TouchableOpacity
-         style={styles.modalOverlay}
-         activeOpacity={1}
-         onPressOut={() => { if (!isSubmitting) onClose(); }} // Close on tap outside if not submitting
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPressOut={() => {
+          if (!isSubmitting) onClose();
+        }} // Close on tap outside if not submitting
       >
-          {/* Prevent taps inside content from closing */}
-         <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
-            <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => { if (!isSubmitting) onClose(); }}
-                disabled={isSubmitting}
+        {/* Prevent taps inside content from closing */}
+        <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => {
+              if (!isSubmitting) onClose();
+            }}
+            disabled={isSubmitting}
+          >
+            <X size={24} color={isSubmitting ? '#cbd5e1' : '#64748b'} />
+          </TouchableOpacity>
+
+          <Text style={styles.modalTitle}>Item Resolved!</Text>
+          <Text style={styles.modalSubtitle}>
+            {type === 'lost'
+              ? 'Great news! Who helped you find it?'
+              : 'Glad it was reclaimed! Share your experience.'}
+          </Text>
+
+          <TextInput
+            style={[styles.input, isSubmitting && styles.disabledInput]}
+            placeholder={
+              type === 'lost'
+                ? "Helper's Name / Description"
+                : "Reclaimer's Name / Description"
+            }
+            placeholderTextColor="#94a3b8"
+            value={helperName}
+            onChangeText={setHelperName}
+            editable={!isSubmitting}
+            autoCapitalize="words"
+          />
+
+          <View style={styles.ratingContainer}>
+            <Text
+              style={[styles.ratingLabel, isSubmitting && styles.disabledText]}
             >
-                <X size={24} color={isSubmitting ? "#cbd5e1" : "#64748b"} />
-            </TouchableOpacity>
-
-            <Text style={styles.modalTitle}>
-                Item Resolved!
+              Rate the Interaction:
             </Text>
-            <Text style={styles.modalSubtitle}>
-                {type === 'lost'
-                ? 'Great news! Who helped you find it?'
-                : 'Glad it was reclaimed! Share your experience.'}
-            </Text>
-
-            <TextInput
-                style={[styles.input, isSubmitting && styles.disabledInput]}
-                placeholder={type === 'lost' ? "Helper's Name / Description" : "Reclaimer's Name / Description"}
-                placeholderTextColor="#94a3b8"
-                value={helperName}
-                onChangeText={setHelperName}
-                editable={!isSubmitting}
-                autoCapitalize="words"
-            />
-
-            <View style={styles.ratingContainer}>
-                <Text style={[styles.ratingLabel, isSubmitting && styles.disabledText]}>Rate the Interaction:</Text>
-                <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity
-                    key={star}
-                    onPress={() => !isSubmitting && setRating(star)} // Prevent change while submitting
-                    style={styles.starButton}
-                    disabled={isSubmitting}
-                    >
-                    <Star
-                        size={32}
-                        color={isSubmitting ? '#e2e8f0' : (star <= rating ? '#fbbf24' : '#cbd5e1')}
-                        fill={isSubmitting ? 'none' : (star <= rating ? '#fbbf24' : 'none')}
-                    />
-                    </TouchableOpacity>
-                ))}
-                </View>
+            <View style={styles.starsContainer}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity
+                  key={star}
+                  onPress={() => !isSubmitting && setRating(star)} // Prevent change while submitting
+                  style={styles.starButton}
+                  disabled={isSubmitting}
+                >
+                  <Star
+                    size={32}
+                    color={
+                      isSubmitting
+                        ? '#e2e8f0'
+                        : star <= rating
+                          ? '#fbbf24'
+                          : '#cbd5e1'
+                    }
+                    fill={
+                      isSubmitting
+                        ? 'none'
+                        : star <= rating
+                          ? '#fbbf24'
+                          : 'none'
+                    }
+                  />
+                </TouchableOpacity>
+              ))}
             </View>
+          </View>
 
-            <TextInput
-                style={[styles.input, styles.textArea, isSubmitting && styles.disabledInput]}
-                placeholder="Share details about the experience (optional)"
-                placeholderTextColor="#94a3b8"
-                value={experience}
-                onChangeText={setExperience}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                editable={!isSubmitting}
-            />
+          <TextInput
+            style={[
+              styles.input,
+              styles.textArea,
+              isSubmitting && styles.disabledInput,
+            ]}
+            placeholder="Share details about the experience (optional)"
+            placeholderTextColor="#94a3b8"
+            value={experience}
+            onChangeText={setExperience}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            editable={!isSubmitting}
+          />
 
-            <TouchableOpacity
-                style={[
-                styles.submitButton,
-                // Disable if submitting OR required fields are missing
-                (isSubmitting || !helperName.trim() || rating === 0) && styles.submitButtonDisabled,
-                ]}
-                onPress={handleSubmit}
-                disabled={isSubmitting || !helperName.trim() || rating === 0}
-            >
-                {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                    <Text style={styles.submitButtonText}>Submit Feedback</Text>
-                )}
-            </TouchableOpacity>
-         </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              // Disable if submitting OR required fields are missing
+              (isSubmitting || !helperName.trim() || rating === 0) &&
+                styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={isSubmitting || !helperName.trim() || rating === 0}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit Feedback</Text>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -262,12 +306,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#1e293b',
   },
-   modalSubtitle: {
-      fontSize: 14,
-      color: '#64748b',
-      textAlign: 'center',
-      marginBottom: 20,
-   },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   input: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
@@ -280,8 +324,8 @@ const styles = StyleSheet.create({
     color: '#1e293b',
   },
   disabledInput: {
-      backgroundColor: '#f1f5f9', // Slightly different background when disabled
-      color: '#94a3b8',
+    backgroundColor: '#f1f5f9', // Slightly different background when disabled
+    color: '#94a3b8',
   },
   textArea: {
     minHeight: 80, // Adjust height
@@ -298,7 +342,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   disabledText: {
-     color: '#cbd5e1', // Muted text color when disabled
+    color: '#cbd5e1', // Muted text color when disabled
   },
   starsContainer: {
     flexDirection: 'row',
