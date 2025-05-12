@@ -422,7 +422,7 @@ jest.mock('expo-router', () => ({
 process.env.EXPO_PUBLIC_PROJECT_ID = 'test-project-id';
 
 
-global.Buffer = global.Buffer || require('buffer').Buffer;
+global.Buffer = global.Buffer;
 let mockFetch: jest.Mock;
 
 
