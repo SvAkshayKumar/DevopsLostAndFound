@@ -307,6 +307,8 @@ import AddItemScreen from '../add';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
+import { Buffer } from 'buffer';
+
 
 // --- MOCKS ---
 let mockSupabaseAuthGetUser: jest.Mock;
@@ -422,7 +424,9 @@ jest.mock('expo-router', () => ({
 process.env.EXPO_PUBLIC_PROJECT_ID = 'test-project-id';
 
 
-global.Buffer = global.Buffer;
+if (typeof global.Buffer === 'undefined') {
+  global.Buffer = Buffer;
+}
 let mockFetch: jest.Mock;
 
 
