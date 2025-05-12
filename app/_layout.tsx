@@ -20,7 +20,7 @@ const NoInternetScreen = ({ onRetry }: { onRetry: () => void }) => {
     <View style={styles.container}>
       {/* --- Ensure this path is correct for your project --- */}
       <LottieView
-        source={require('@/assets/animations/no-internet.json')}
+        source={require('../../assets/animations/no-internet.json')}
         autoPlay
         loop
         style={styles.lottie}
