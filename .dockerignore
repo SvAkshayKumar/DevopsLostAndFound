@@ -1,0 +1,12 @@
+# Ignore node modules and build artifacts
+node_modules
+*.log
+*.tsbuildinfo
+npm-debug.log
+yarn.lock
+.expo
+.expo-shared
+dist
+build
+android
+ios
